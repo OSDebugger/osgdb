@@ -1,0 +1,1373 @@
+{
+	"name": "os-debug",
+	"displayName": "OS Debugger",
+	"homepage":"https://github.com/chenzhiy2001/code-debug/blob/master/code-debug/README-ExtensionMarkets.md",
+	"description": "code-debug Operating System Debugger",
+	"keywords": [
+		"gdb",
+		"os",
+		"debug"
+	],
+	"license": "public domain",
+	"version": "2.0.1",
+	"publisher": "chenzhiy2001",
+	"icon": "images/icon.png",
+	"engines": {
+		"vscode": "^1.55.0"
+	},
+	"main": "./out/src/frontend/extension",
+	"activationEvents": [
+		"onDebug"
+	],
+	"categories": [
+		"Debuggers"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/chenzhiy2001/code-debug.git"
+	},
+	"capabilities": {
+		"untrustedWorkspaces": {
+			"supported": true
+		}
+	},
+	"contributes": {
+		"menus": {
+			"editor/title": [
+				{
+					"when": "resourceLangId == true",
+					"command": "code-debug.removeAllCliBreakpoints",
+					"group": "navigation"
+				},
+				{
+					"when": "resourceLangId == true",
+					"command": "code-debug.setBorderBreakpointsFromLaunchJSON",
+					"group": "navigation"
+				},
+				{
+					"when": "resourceLangId == true",
+					"command": "code-debug.setHookBreakpointsFromLaunchJSON",
+					"group": "navigation"
+				},
+				{
+					"when": "resourceLangId == true",
+					"command": "code-debug.disableCurrentSpaceBreakpoints",
+					"group": "navigation"
+				}
+			],
+			"editor/context": [
+				{
+					"command": "code-debug.registerSelectedSymbolInKernel",
+					"group": "9_cutcopypaste"
+				},
+				{
+					"command": "code-debug.registerSelectedSymbolInUserSpace",
+					"group": "9_cutcopypaste"
+				}
+			],
+			"editor/lineNumber/context": [
+				{
+					"command": "code-debug.setBreakpointAsBorder",
+					"group": "9_cutcopypaste"
+				},
+				{
+					"command": "code-debug.disableBorderOfThisBreakpointGroup",
+					"group": "9_cutcopypaste"
+				}
+			]
+		},
+		"commands": [
+			{
+				"command": "code-debug.eBPFPanel",
+				"title": "eBPF WebView",
+				"category": "CoreDebugger"
+			},
+			{
+				"command": "code-debug.examineMemoryLocation",
+				"title": "Code-Debug: Examine memory location"
+			},
+			{
+				"command": "core-debugger.startPanel",
+				"title": "Start new core-debugger panel",
+				"category": "CoreDebugger"
+			},
+			{
+				"command": "core-debugger.updatePanel",
+				"title": "update core-debugger panel",
+				"category": "CoreDebugger"
+			},
+			{
+				"command": "code-debug.removeDebugFile",
+				"title": "Remove Debug File",
+				"icon": {
+					"dark": "images/remove-debug-file-dark.svg",
+					"light": "images/remove-debug-file-light.svg"
+				}
+			},
+			{
+				"command": "code-debug.setBorderBreakpointsFromLaunchJSON",
+				"title": "Set Border Breakpoints from `launch.json`.",
+				"icon": {
+					"dark": "images/set-border-breakpoints-dark.svg",
+					"light": "images/set-border-breakpoints-light.svg"
+				}
+			},
+			{
+				"command": "code-debug.setHookBreakpointsFromLaunchJSON",
+				"title": "Set hook breakpoints (from launch.json) which is breakpoints with user-defined debugger behavior when triggered.",
+				"icon": {
+					"dark": "images/set-border-breakpoints-dark.svg",
+					"light": "images/set-border-breakpoints-light.svg"
+				}
+			},
+			{
+				"command": "code-debug.removeAllCliBreakpoints",
+				"title": "Remove all breakpoints (delete breakpoints in editor and debugger cli) , borders and hooks",
+				"icon": {
+					"dark": "images/remove-all-cli-breakpoints-dark.svg",
+					"light": "images/remove-all-cli-breakpoints-light.svg"
+				}
+			},
+			{
+				"command": "code-debug.disableCurrentSpaceBreakpoints",
+				"title": "Disable Current Space Breakpoints",
+				"icon": {
+					"dark": "images/disable-current-space-breakpoints-dark.svg",
+					"light": "images/disable-current-space-breakpoints-light.svg"
+				}
+			},
+			{
+				"command": "code-debug.registerSelectedSymbolInUserSpace",
+				"title": "Register Selected Symbol in User Space"
+			},
+			{
+				"command": "code-debug.registerSelectedSymbolInKernel",
+				"title": "Register Selected Symbol in Kernel"
+			},
+			{
+				"command": "code-debug.setBreakpointAsBorder",
+				"title": "set this breakpoint as border"
+			},
+			{
+				"command": "code-debug.disableBorderOfThisBreakpointGroup",
+				"title": "disable border breakpoint of this breakpoint group"
+			}
+		],
+		"breakpoints": [
+			{
+				"language": "c"
+			},
+			{
+				"language": "cpp"
+			},
+			{
+				"language": "d"
+			},
+			{
+				"language": "objective-c"
+			},
+			{
+				"language": "fortran"
+			},
+			{
+				"language": "fortran-modern"
+			},
+			{
+				"language": "fortran90"
+			},
+			{
+				"language": "fortran_free-form"
+			},
+			{
+				"language": "fortran_fixed-form"
+			},
+			{
+				"language": "rust"
+			},
+			{
+				"language": "pascal"
+			},
+			{
+				"language": "objectpascal"
+			},
+			{
+				"language": "ada"
+			},
+			{
+				"language": "nim"
+			},
+			{
+				"language": "arm"
+			},
+			{
+				"language": "asm"
+			},
+			{
+				"language": "vala"
+			},
+			{
+				"language": "crystal"
+			},
+			{
+				"language": "kotlin"
+			},
+			{
+				"language": "zig"
+			},
+			{
+				"language": "riscv"
+			}
+		],
+		"debuggers": [
+			{
+				"type": "gdb",
+				"program": "./out/src/gdb.js",
+				"runtime": "node",
+				"label": "GDB",
+				"languages": [
+					"c",
+					"cpp",
+					"rust",
+					"d",
+					"objective-c",
+					"fortran",
+					"fortran-modern",
+					"fortran90",
+					"fortran_free-form",
+					"fortran_fixed-form",
+					"rust",
+					"pascal",
+					"objectpascal",
+					"ada",
+					"nim",
+					"arm",
+					"asm",
+					"vala",
+					"crystal",
+					"kotlin",
+					"zig",
+					"riscv"
+				],
+				"configurationAttributes": {
+					"launch": {
+						"required": [
+							"target",
+							"cwd"
+						],
+						"properties": {
+							"target": {
+								"type": "string",
+								"description": "Path of executable"
+							},
+							"arguments": {
+								"type": "string",
+								"description": "Arguments to append after the executable. You can also use pipes."
+							},
+							"terminal": {
+								"type": "string",
+								"description": "Leave this field undefined to keep program output in the vscode console at the bottom. If this is set to empty string the program will spawn in a new console using x-terminal-emulator on linux, otherwise with the specified terminal. On windows setting this to an empty string spawns the program in a console, but no other console is supported."
+							},
+							"cwd": {
+								"type": "string",
+								"description": "project path"
+							},
+							"gdbpath": {
+								"type": "string",
+								"description": "Path to the gdb executable or the command if in PATH",
+								"default": "gdb"
+							},
+							"env": {
+								"type": "object",
+								"description": "Environment overriding the gdb (and in turn also the process) environment",
+								"default": null
+							},
+							"debugger_args": {
+								"type": "array",
+								"description": "Additional arguments to pass to GDB",
+								"default": []
+							},
+							"pathSubstitutions": {
+								"type": "object",
+								"description": "Help GDB find your source using path substitutions (GDB `substitute-path)` variable",
+								"default": {
+									"<fromPath>": "<toPath>"
+								}
+							},
+							"valuesFormatting": {
+								"type": "string",
+								"description": "Set the way of showing variable values. 'disabled' - show value as is, 'parseText' - parse debuggers output text into structure, 'prettyPrinters' - enable debuggers custom pretty-printers if there are any",
+								"default": "prettyPrinters",
+								"enum": [
+									"disabled",
+									"parseText",
+									"prettyPrinters"
+								]
+							},
+							"frameFilters": {
+								"type": "boolean",
+								"description": "Use frame filters registered in GDB",
+								"default": true
+							},
+							"printCalls": {
+								"type": "boolean",
+								"description": "Prints all GDB calls to the console",
+								"default": false
+							},
+							"showDevDebugOutput": {
+								"type": "boolean",
+								"description": "Prints all GDB responses to the console",
+								"default": false
+							},
+							"autorun": {
+								"type": "array",
+								"description": "GDB commands to run when starting to debug",
+								"default": []
+							},
+							"stopAtEntry": {
+								"type": [
+									"boolean",
+									"string"
+								],
+								"description": "Whether debugger should stop at application entry point",
+								"default": false
+							},
+							"ssh": {
+								"required": [
+									"host",
+									"user",
+									"cwd"
+								],
+								"type": "object",
+								"description": "If this is set then the extension will connect to an ssh host and run GDB there",
+								"properties": {
+									"host": {
+										"type": "string",
+										"description": "Remote host name/ip to connect to"
+									},
+									"port": {
+										"type": [
+											"number",
+											"string"
+										],
+										"description": "Remote port number",
+										"default": 22
+									},
+									"user": {
+										"type": "string",
+										"description": "Username to connect as"
+									},
+									"password": {
+										"type": "string",
+										"description": "Plain text password (unsafe; if possible use keyfile instead)"
+									},
+									"keyfile": {
+										"type": "string",
+										"description": "Absolute path to private key"
+									},
+									"useAgent": {
+										"type": "boolean",
+										"description": "Auto-detect the running SSH agent (via SSH_AUTH_SOCK environment variable) and use it to perform authentication",
+										"default": false
+									},
+									"sourceFileMap": {
+										"type": "object",
+										"description": "Mapping of source paths (from GDB on ssh remote) to local (IDE) paths.",
+										"default": {
+											"<sourcePath>": "<localPath>"
+										}
+									},
+									"cwd": {
+										"type": "string",
+										"description": "Working directory for the debugger.\nIf `ssh.sourceFileMap` is not set, then this is also the project path on the remote for mapping with `cwd`."
+									},
+									"forwardX11": {
+										"type": "boolean",
+										"description": "If true, the server will redirect x11 to the local host",
+										"default": true
+									},
+									"x11port": {
+										"type": [
+											"number",
+											"string"
+										],
+										"description": "Port to redirect X11 data to (by default port = display + 6000)",
+										"default": 6000
+									},
+									"x11host": {
+										"type": "string",
+										"description": "Hostname/ip to redirect X11 data to",
+										"default": "localhost"
+									},
+									"remotex11screen": {
+										"type": "number",
+										"description": "Screen to start the application on the remote side",
+										"default": 0
+									},
+									"bootstrap": {
+										"type": "string",
+										"description": "Content will be executed on the SSH host before the debugger call."
+									}
+								}
+							},
+							"registerLimit": {
+								"type": "string",
+								"description": "List of numbers specifying the registers to display. An empty string indicates that the contents of all the registers must be returned.",
+								"default": ""
+							}
+						}
+					},
+					"attach": {
+						"required": [
+							"target",
+							"cwd"
+						],
+						"properties": {
+							"target": {
+								"type": "string",
+								"description": "PID of running program or program name or connection arguments (eg :2345) if remote is true"
+							},
+							"remote": {
+								"type": "boolean",
+								"description": "If true this will connect to a gdbserver instead of attaching to a PID",
+								"default": false
+							},
+							"valuesFormatting": {
+								"type": "string",
+								"description": "Set the way of showing variable values. 'disabled' - show value as is, 'parseText' - parse debuggers output text into structure, 'prettyPrinters' - enable debuggers custom pretty-printers if there are any",
+								"default": "parseText",
+								"enum": [
+									"disabled",
+									"parseText",
+									"prettyPrinters"
+								]
+							},
+							"frameFilters": {
+								"type": "boolean",
+								"description": "Use frame filters registered in GDB",
+								"default": true
+							},
+							"printCalls": {
+								"type": "boolean",
+								"description": "Prints all GDB calls to the console",
+								"default": false
+							},
+							"showDevDebugOutput": {
+								"type": "boolean",
+								"description": "Prints all GDB responses to the console",
+								"default": false
+							},
+							"executable": {
+								"type": "string",
+								"description": "Path of executable for debugging symbols"
+							},
+							"arguments": {
+								"type": "string",
+								"description": "Arguments to append after the executable. You can also use pipes."
+							},
+							"terminal": {
+								"type": "string",
+								"description": "Leave this field undefined to keep program output in the vscode console at the bottom. If this is set to empty string the program will spawn in a new console using x-terminal-emulator on linux, otherwise with the specified terminal. On windows setting this to an empty string spawns the program in a console, but no other console is supported."
+							},
+							"gdbpath": {
+								"type": "string",
+								"description": "Path to the gdb executable or the command if in PATH",
+								"default": "gdb"
+							},
+							"env": {
+								"type": "object",
+								"description": "Environment overriding the gdb (and in turn also the process) environment",
+								"default": null
+							},
+							"debugger_args": {
+								"type": "array",
+								"description": "Additional arguments to pass to GDB",
+								"default": []
+							},
+							"pathSubstitutions": {
+								"type": "object",
+								"description": "Help GDB find your source using path substitutions (GDB `substitute-path)` variable",
+								"default": {
+									"<fromPath>": "<toPath>"
+								}
+							},
+							"cwd": {
+								"type": "string",
+								"description": "project path",
+								"default": "${workspaceRoot}"
+							},
+							"autorun": {
+								"type": "array",
+								"description": "GDB commands to run when starting to debug",
+								"default": []
+							},
+							"stopAtConnect": {
+								"type": "boolean",
+								"description": "Whether debugger should stop after connecting to target",
+								"default": false
+							},
+							"stopAtEntry": {
+								"type": [
+									"boolean",
+									"string"
+								],
+								"description": "Whether debugger should stop at application entry point",
+								"default": false
+							},
+							"qemuPath": {
+								"type": "string",
+								"description": "Path to qemu executable",
+								"default": "qemu-system-riscv64"
+							},
+							"qemuArgs": {
+								"type": "array",
+								"description": "Cmdline args which will be passed to qemu",
+								"default": [
+									"-M",
+									"128m",
+									"-machine",
+									"virt",
+									"-bios",
+									"${userHome}/rCore-Tutorial-v3/bootloader/rustsbi-qemu.bin",
+									"-display",
+									"none",
+									"-device",
+									"loader,file=${userHome}/rCore-Tutorial-v3/os/target/riscv64gc-unknown-none-elf/release/os.bin,addr=0x80200000",
+									"-drive",
+									"file=${userHome}/rCore-Tutorial-v3/user/target/riscv64gc-unknown-none-elf/release/fs.img,if=none,format=raw,id=x0",
+									"-device",
+									"virtio-blk-device,drive=x0",
+									"-device",
+									"virtio-gpu-device",
+									"-device",
+									"virtio-keyboard-device",
+									"-device",
+									"virtio-mouse-device",
+									"-serial",
+									"stdio",
+									"-s",
+									"-S"
+								]
+							},
+							"program_counter_id": {
+								"type": "number",
+								"description": "id of pc register. 32 in riscv",
+								"default": 32
+							},
+							"first_breakpoint_group":{
+								"type":"string",
+								"description":"Name of first breakpoint group",
+								"default":"kernel"
+							},
+							"second_breakpoint_group":{
+								"type":"string",
+								"description":"Name of second breakpoint group if debugger failed to fetch second breakpoint group automatically",
+								"default":"${workspaceFolder}/user/src/bin/initproc.rs"
+							},
+							"kernel_memory_ranges":{
+								"type":"array",
+								"description": "ranges of kernel address, left-closed right-open intervals",
+								"default":[["0xefffffffffffffff","0xffffffffffffffff"]]
+							},
+							"user_memory_ranges":{
+								"type":"array",
+								"description":"ranges of user address, left-closed right-open intervals",
+								"default":[["0x0000000000000000","0xe000000000000000"]]
+							},
+							"border_breakpoints":{
+								"type":"array",
+								"description":"Border breakpoints of each breakpoint group. One border breakpoint can belong to more than one breakpoint groups according to your `filePathToBreakpointGroupNames` function.",
+								"default":[{"filepath":"${workspaceFolder}/user/src/syscall.rs","line":39},{"filepath":"${workspaceFolder}/os/src/trap/mod.rs","line":152}]
+							},
+							"hook_breakpoints":{
+								"type":"array",
+								"description":"breakpoints and user-submitted js codes used to fetch next user program name",
+								"default":[{"breakpoint":{"file":"${workspaceFolder}/os/src/syscall/process.rs","line":49},"behavior":{"isAsync":true,"functionArguments":"","functionBody":"let p=await this.getStringVariable('path'); return '${workspaceFolder}/user/src/bin/'+p+'.rs';"}}]
+							},
+							"filePathToBreakpointGroupNames":{
+								"type":"object",
+								"description":"user-submitted js code used to turn a filepath into breakpoint group name",
+								"default":{"isAsync":false,"functionArguments":"filePathStr","functionBody":"     if (filePathStr.includes('os/src')) {        return ['kernel'];    }    else if (filePathStr.includes('user/src/bin')) {        return [filePathStr];    }    else if (!filePathStr.includes('user/src/bin') && filePathStr.includes('user/src')) {        return ['${workspaceFolder}/user/src/bin/adder_atomic.rs', '${workspaceFolder}/user/src/bin/adder_mutex_blocking.rs', '${workspaceFolder}/user/src/bin/adder_mutex_spin.rs', '${workspaceFolder}/user/src/bin/adder_peterson_spin.rs', '${workspaceFolder}/user/src/bin/adder_peterson_yield.rs', '${workspaceFolder}/user/src/bin/adder.rs', '${workspaceFolder}/user/src/bin/adder_simple_spin.rs', '${workspaceFolder}/user/src/bin/adder_simple_yield.rs', '${workspaceFolder}/user/src/bin/barrier_condvar.rs', '${workspaceFolder}/user/src/bin/barrier_fail.rs', '${workspaceFolder}/user/src/bin/cat.rs', '${workspaceFolder}/user/src/bin/cmdline_args.rs', '${workspaceFolder}/user/src/bin/condsync_condvar.rs', '${workspaceFolder}/user/src/bin/condsync_sem.rs', '${workspaceFolder}/user/src/bin/count_lines.rs', '${workspaceFolder}/user/src/bin/eisenberg.rs', '${workspaceFolder}/user/src/bin/exit.rs', '${workspaceFolder}/user/src/bin/fantastic_text.rs', '${workspaceFolder}/user/src/bin/filetest_simple.rs', '${workspaceFolder}/user/src/bin/forktest2.rs', '${workspaceFolder}/user/src/bin/forktest.rs', '${workspaceFolder}/user/src/bin/forktest_simple.rs', '${workspaceFolder}/user/src/bin/forktree.rs', '${workspaceFolder}/user/src/bin/gui_rect.rs', '${workspaceFolder}/user/src/bin/gui_simple.rs', '${workspaceFolder}/user/src/bin/gui_snake.rs', '${workspaceFolder}/user/src/bin/gui_uart.rs', '${workspaceFolder}/user/src/bin/hello_world.rs', '${workspaceFolder}/user/src/bin/huge_write_mt.rs', '${workspaceFolder}/user/src/bin/huge_write.rs', '${workspaceFolder}/user/src/bin/infloop.rs', '${workspaceFolder}/user/src/bin/initproc.rs', '${workspaceFolder}/user/src/bin/inputdev_event.rs', '${workspaceFolder}/user/src/bin/matrix.rs', '${workspaceFolder}/user/src/bin/mpsc_sem.rs', '${workspaceFolder}/user/src/bin/peterson.rs', '${workspaceFolder}/user/src/bin/phil_din_mutex.rs', '${workspaceFolder}/user/src/bin/pipe_large_test.rs', '${workspaceFolder}/user/src/bin/pipetest.rs', '${workspaceFolder}/user/src/bin/priv_csr.rs', '${workspaceFolder}/user/src/bin/priv_inst.rs', '${workspaceFolder}/user/src/bin/race_adder_arg.rs', '${workspaceFolder}/user/src/bin/random_num.rs', '${workspaceFolder}/user/src/bin/run_pipe_test.rs', '${workspaceFolder}/user/src/bin/sleep.rs', '${workspaceFolder}/user/src/bin/sleep_simple.rs', '${workspaceFolder}/user/src/bin/stackful_coroutine.rs', '${workspaceFolder}/user/src/bin/stackless_coroutine.rs', '${workspaceFolder}/user/src/bin/stack_overflow.rs', '${workspaceFolder}/user/src/bin/store_fault.rs', '${workspaceFolder}/user/src/bin/sync_sem.rs', '${workspaceFolder}/user/src/bin/tcp_simplehttp.rs', '${workspaceFolder}/user/src/bin/threads_arg.rs', '${workspaceFolder}/user/src/bin/threads.rs', '${workspaceFolder}/user/src/bin/udp.rs', '${workspaceFolder}/user/src/bin/until_timeout.rs', '${workspaceFolder}/user/src/bin/user_shell.rs', '${workspaceFolder}/user/src/bin/usertests.rs', '${workspaceFolder}/user/src/bin/yield.rs'];    }    else        return ['kernel'];"}
+							},
+							"breakpointGroupNameToDebugFilePaths":{
+								"type":"object",
+								"description":"user-submitted js code used to turn breakpoint group names into its debug file's path",
+								"default":{"isAsync":false,"functionArguments":"groupName","functionBody":"if (groupName === 'kernel') {        return ['${workspaceFolder}/os/target/riscv64gc-unknown-none-elf/release/os'];    }    else {        let pathSplited = groupName.split('/');        let filename = pathSplited[pathSplited.length - 1].split('.');        let filenameWithoutExtension = filename[filename.length - 2];        return ['${workspaceFolder}/user/target/riscv64gc-unknown-none-elf/release/' + filenameWithoutExtension];    }"}
+							},
+							"ssh": {
+								"required": [
+									"host",
+									"cwd",
+									"user"
+								],
+								"type": "object",
+								"description": "If this is set then the extension will connect to an ssh host and run GDB there",
+								"properties": {
+									"host": {
+										"type": "string",
+										"description": "Remote host name/ip to connect to"
+									},
+									"port": {
+										"type": [
+											"number",
+											"string"
+										],
+										"description": "Remote port number",
+										"default": 22
+									},
+									"user": {
+										"type": "string",
+										"description": "Username to connect as"
+									},
+									"password": {
+										"type": "string",
+										"description": "Plain text password (unsafe; if possible use keyfile instead)"
+									},
+									"keyfile": {
+										"type": "string",
+										"description": "Absolute path to private key"
+									},
+									"useAgent": {
+										"type": "boolean",
+										"description": "Auto-detect the running SSH agent (via SSH_AUTH_SOCK environment variable) and use it to perform authentication",
+										"default": false
+									},
+									"sourceFileMap": {
+										"type": "object",
+										"description": "Mapping of source paths (from GDB on ssh remote) to local (IDE) paths.",
+										"default": {
+											"<sourcePath>": "<localPath>"
+										}
+									},
+									"cwd": {
+										"type": "string",
+										"description": "Working directory for the debugger.\nIf `ssh.sourceFileMap` is not set, then this is also the project path on the remote for mapping with `cwd`."
+									},
+									"forwardX11": {
+										"type": "boolean",
+										"description": "If true, the server will redirect x11 to the local host",
+										"default": true
+									},
+									"x11port": {
+										"type": [
+											"number",
+											"string"
+										],
+										"description": "Port to redirect X11 data to (by default port = display + 6000)",
+										"default": 6000
+									},
+									"x11host": {
+										"type": "string",
+										"description": "Hostname/ip to redirect X11 data to",
+										"default": "localhost"
+									},
+									"remotex11screen": {
+										"type": "number",
+										"description": "Screen to start the application on the remote side",
+										"default": 0
+									},
+									"bootstrap": {
+										"type": "string",
+										"description": "Content will be executed on the SSH host before the debugger call."
+									}
+								}
+							},
+							"registerLimit": {
+								"type": "string",
+								"description": "List of numbers specifying the registers to display. An empty string indicates that the contents of all the registers must be returned.",
+								"default": ""
+							}
+						}
+					}
+				},
+				"initialConfigurations": [
+					{
+						"name": "Debug",
+						"type": "gdb",
+						"request": "launch",
+						"target": "./bin/executable",
+						"cwd": "${workspaceRoot}",
+						"valuesFormatting": "parseText"
+					}
+				],
+				"configurationSnippets": [
+					{
+						"label": "GDB: Launch Program",
+						"description": "Starts the program using gdb",
+						"body": {
+							"type": "gdb",
+							"request": "launch",
+							"name": "${2:Launch Program}",
+							"target": "${1:./bin/executable}",
+							"cwd": "^\"\\${workspaceRoot}\"",
+							"valuesFormatting": "parseText"
+						}
+					},
+					{
+						"label": "GDB: Attach to PID",
+						"description": "Attaches to a running program pid using gdb",
+						"body": {
+							"type": "gdb",
+							"request": "attach",
+							"name": "${2:Attach to PID}",
+							"target": "${1:[PID]}",
+							"cwd": "^\"\\${workspaceRoot}\"",
+							"valuesFormatting": "parseText"
+						}
+					},
+					{
+						"label": "GDB: Connect to gdbserver",
+						"description": "Connects to a gdbserver for debugging",
+						"body": {
+							"type": "gdb",
+							"request": "attach",
+							"name": "${3:Attach to gdbserver}",
+							"executable": "${1:./bin/executable}",
+							"target": ":${2:2345}",
+							"remote": true,
+							"cwd": "^\"\\${workspaceRoot}\"",
+							"valuesFormatting": "parseText"
+						}
+					},
+					{
+						"label": "GDB: Launch over SSH",
+						"description": "Remotely starts the program using gdb",
+						"body": {
+							"type": "gdb",
+							"request": "launch",
+							"name": "${6:Launch Program (SSH)}",
+							"target": "${1:./bin/executable}",
+							"cwd": "^\"\\${workspaceRoot}\"",
+							"ssh": {
+								"host": "${2:127.0.0.1}",
+								"cwd": "${3:/tmp/working}",
+								"keyfile": "${4:/home/my_user/.ssh/id_rsa}",
+								"user": "${5:remote_user}",
+								"sourceFileMap": {
+									"${6:/home/remote_user/project/}": "^\"\\${workspaceRoot}\""
+								}
+							},
+							"valuesFormatting": "parseText"
+						}
+					},
+					{
+						"label": "GDB: Launch GUI over SSH with X11 forwarding",
+						"description": "Remotely starts the program using gdb with X11 forwarding",
+						"body": {
+							"type": "gdb",
+							"request": "launch",
+							"name": "${6:Launch Program (SSH + X11)}",
+							"target": "${1:./bin/executable}",
+							"cwd": "^\"\\${workspaceRoot}\"",
+							"ssh": {
+								"host": "${2:127.0.0.1}",
+								"cwd": "${3:/home/remote_user/project/}",
+								"keyfile": "${4:/home/my_user/.ssh/id_rsa}",
+								"user": "${5:remote_user}",
+								"forwardX11": true,
+								"x11host": "localhost",
+								"x11port": 6000
+							},
+							"valuesFormatting": "parseText"
+						}
+					},
+					{
+						"label": "GDB: Debug external embedded device",
+						"description": "Debugs an embedded microcontroller supported by GDB by attaching over extended-remote",
+						"body": {
+							"type": "gdb",
+							"request": "attach",
+							"name": "${6:Debug Microcontroller}",
+							"target": "extended-remote ${2:/dev/cu.usbmodem00000000}",
+							"executable": "${1:./bin/executable.elf}",
+							"cwd": "^\"\\${workspaceRoot}\"",
+							"autorun": [
+								"monitor tpwr enable",
+								"monitor swdp_scan",
+								"attach 1",
+								"load ${1:./bin/executable.elf}"
+							]
+						},
+						"valuesFormatting": "parseText"
+					}
+				]
+			},
+			{
+				"type": "lldb-mi",
+				"program": "./out/src/lldb.js",
+				"runtime": "node",
+				"label": "LLDB",
+				"languages": [
+					"c",
+					"cpp",
+					"d",
+					"objective-c",
+					"fortran",
+					"fortran-modern",
+					"fortran90",
+					"fortran_free-form",
+					"fortran_fixed-form",
+					"rust",
+					"pascal",
+					"objectpascal",
+					"ada",
+					"nim",
+					"arm",
+					"asm",
+					"vala",
+					"crystal",
+					"kotlin",
+					"zig",
+					"riscv"
+				],
+				"variables": {
+					"FileBasenameNoExt": "code-debug.getFileBasenameNoExt",
+					"FileNameNoExt": "code-debug.getFileNameNoExt"
+				},
+				"configurationAttributes": {
+					"launch": {
+						"required": [
+							"target"
+						],
+						"properties": {
+							"target": {
+								"type": "string",
+								"description": "Path of executable"
+							},
+							"arguments": {
+								"type": "string",
+								"description": "Arguments to append after the executable"
+							},
+							"cwd": {
+								"type": "string",
+								"description": "project path"
+							},
+							"lldbmipath": {
+								"type": "string",
+								"description": "Path to the lldb-mi executable or the command if in PATH",
+								"default": "lldb-mi"
+							},
+							"env": {
+								"type": "object",
+								"description": "Environment overriding the lldb-mi (and in turn also the process) environment",
+								"default": null
+							},
+							"debugger_args": {
+								"type": "array",
+								"description": "Additional arguments to pass to LLDB",
+								"default": []
+							},
+							"pathSubstitutions": {
+								"type": "object",
+								"description": "Help LLDB find your source using path substitutions (LLDB `target.source-map)` variable",
+								"default": {
+									"<fromPath>": "<toPath>"
+								}
+							},
+							"valuesFormatting": {
+								"type": "string",
+								"description": "Set the way of showing variable values. 'disabled' - show value as is, 'parseText' - parse debuggers output text into structure, 'prettyPrinters' - enable debuggers custom pretty-printers if there are any",
+								"default": "parseText",
+								"enum": [
+									"disabled",
+									"parseText",
+									"prettyPrinters"
+								]
+							},
+							"printCalls": {
+								"type": "boolean",
+								"description": "Prints all lldb calls to the console",
+								"default": false
+							},
+							"showDevDebugOutput": {
+								"type": "boolean",
+								"description": "Prints all lldb responses to the console",
+								"default": false
+							},
+							"autorun": {
+								"type": "array",
+								"description": "lldb commands to run when starting to debug",
+								"default": []
+							},
+							"stopAtEntry": {
+								"type": [
+									"boolean",
+									"string"
+								],
+								"description": "Whether debugger should stop at application entry point",
+								"default": false
+							},
+							"ssh": {
+								"required": [
+									"host",
+									"cwd",
+									"user"
+								],
+								"type": "object",
+								"description": "If this is set then the extension will connect to an ssh host and run lldb there",
+								"properties": {
+									"host": {
+										"type": "string",
+										"description": "Remote host name/ip to connect to"
+									},
+									"port": {
+										"type": [
+											"number",
+											"string"
+										],
+										"description": "Remote port number",
+										"default": 22
+									},
+									"user": {
+										"type": "string",
+										"description": "Username to connect as"
+									},
+									"password": {
+										"type": "string",
+										"description": "Plain text password (unsafe; if possible use keyfile instead)"
+									},
+									"keyfile": {
+										"type": "string",
+										"description": "Absolute path to private key"
+									},
+									"useAgent": {
+										"type": "boolean",
+										"description": "Auto-detect the running SSH agent (via SSH_AUTH_SOCK environment variable) and use it to perform authentication",
+										"default": false
+									},
+									"sourceFileMap": {
+										"type": "object",
+										"description": "Mapping of source paths (from GDB on ssh remote) to local (IDE) paths.",
+										"default": {
+											"<sourcePath>": "<localPath>"
+										}
+									},
+									"cwd": {
+										"type": "string",
+										"description": "Working directory for the debugger.\nIf `ssh.sourceFileMap` is not set, then this is also the project path on the remote for mapping with `cwd`."
+									},
+									"forwardX11": {
+										"type": "boolean",
+										"description": "If true, the server will redirect x11 to the local host",
+										"default": true
+									},
+									"x11host": {
+										"type": "string",
+										"description": "Hostname/ip to redirect X11 data to",
+										"default": "localhost"
+									},
+									"x11port": {
+										"type": [
+											"number",
+											"string"
+										],
+										"description": "Port to redirect X11 data to (by default port = display + 6000)",
+										"default": 6000
+									},
+									"remotex11screen": {
+										"type": "number",
+										"description": "Screen to start the application on the remote side",
+										"default": 0
+									},
+									"bootstrap": {
+										"type": "string",
+										"description": "Content will be executed on the SSH host before the debugger call."
+									}
+								}
+							},
+							"registerLimit": {
+								"type": "string",
+								"description": "List of numbers specifying the registers to display. An empty string indicates that the contents of all the registers must be returned.",
+								"default": ""
+							}
+						}
+					},
+					"attach": {
+						"required": [
+							"target"
+						],
+						"properties": {
+							"target": {
+								"type": "string",
+								"description": "PID of running program or program name"
+							},
+							"valuesFormatting": {
+								"type": "string",
+								"description": "Set the way of showing variable values. 'disabled' - show value as is, 'parseText' - parse debuggers output text into structure, 'prettyPrinters' - enable debuggers custom pretty-printers if there are any",
+								"default": "parseText",
+								"enum": [
+									"disabled",
+									"parseText",
+									"prettyPrinters"
+								]
+							},
+							"printCalls": {
+								"type": "boolean",
+								"description": "Prints all LLDB calls to the console",
+								"default": false
+							},
+							"showDevDebugOutput": {
+								"type": "boolean",
+								"description": "Prints all LLDB responses to the console",
+								"default": false
+							},
+							"executable": {
+								"type": "string",
+								"description": "Path of executable for debugging symbols"
+							},
+							"lldbmipath": {
+								"type": "string",
+								"description": "Path to the lldb-mi executable or the command if in PATH",
+								"default": "lldb-mi"
+							},
+							"env": {
+								"type": "object",
+								"description": "Environment overriding the lldb-mi (and in turn also the process) environment",
+								"default": null
+							},
+							"debugger_args": {
+								"type": "array",
+								"description": "Additional arguments to pass to LLDB",
+								"default": []
+							},
+							"pathSubstitutions": {
+								"type": "object",
+								"description": "Help LLDB find your source using path substitutions (LLDB `target.source-map)` variable",
+								"default": {
+									"<fromPath>": "<toPath>"
+								}
+							},
+							"cwd": {
+								"type": "string",
+								"description": "project path",
+								"default": "${workspaceRoot}"
+							},
+							"autorun": {
+								"type": "array",
+								"description": "lldb commands to run when starting to debug",
+								"default": []
+							},
+							"stopAtConnect": {
+								"type": "boolean",
+								"description": "Whether debugger should stop after connecting to target",
+								"default": false
+							},
+							"stopAtEntry": {
+								"type": [
+									"boolean",
+									"string"
+								],
+								"description": "Whether debugger should stop at application entry point",
+								"default": false
+							},
+							"registerLimit": {
+								"type": "string",
+								"description": "List of numbers specifying the registers to display. An empty string indicates that the contents of all the registers must be returned.",
+								"default": ""
+							}
+						}
+					}
+				},
+				"initialConfigurations": [
+					{
+						"name": "Debug",
+						"type": "lldb-mi",
+						"request": "launch",
+						"target": "./bin/executable",
+						"cwd": "${workspaceRoot}",
+						"valuesFormatting": "parseText"
+					}
+				],
+				"configurationSnippets": [
+					{
+						"label": "LLDB: Launch Program",
+						"description": "Starts the program using lldb-mi",
+						"body": {
+							"type": "lldb-mi",
+							"request": "launch",
+							"name": "${2:Launch Program}",
+							"target": "${1:./bin/executable}",
+							"cwd": "^\"\\${workspaceRoot}\"",
+							"valuesFormatting": "parseText"
+						}
+					},
+					{
+						"label": "LLDB: Attach to PID",
+						"description": "Attaches to a running program pid using lldb-mi",
+						"body": {
+							"type": "lldb-mi",
+							"request": "attach",
+							"name": "${2:Attach to PID}",
+							"target": "${1:[PID]}",
+							"cwd": "^\"\\${workspaceRoot}\"",
+							"valuesFormatting": "parseText"
+						}
+					},
+					{
+						"label": "LLDB: Launch over SSH",
+						"description": "Remotely starts the program using lldb-mi",
+						"body": {
+							"type": "lldb-mi",
+							"request": "launch",
+							"name": "${6:Launch Program (SSH)}",
+							"target": "${1:./bin/executable}",
+							"cwd": "^\"\\${workspaceRoot}\"",
+							"ssh": {
+								"host": "${2:127.0.0.1}",
+								"cwd": "${3:/home/remote_user/project/}",
+								"keyfile": "${4:/home/my_user/.ssh/id_rsa}",
+								"user": "${5:remote_user}"
+							},
+							"valuesFormatting": "parseText"
+						}
+					},
+					{
+						"label": "LLDB: Launch GUI over SSH with X11 forwarding",
+						"description": "Remotely starts the program using lldb-mi with X11 forwarding",
+						"body": {
+							"type": "lldb-mi",
+							"request": "launch",
+							"name": "${6:Launch Program (SSH + X11)}",
+							"target": "${1:./bin/executable}",
+							"cwd": "^\"\\${workspaceRoot}\"",
+							"ssh": {
+								"host": "${2:127.0.0.1}",
+								"cwd": "${3:/home/remote_user/project/}",
+								"keyfile": "${4:/home/my_user/.ssh/id_rsa}",
+								"user": "${5:remote_user}",
+								"forwardX11": true,
+								"x11host": "localhost",
+								"x11port": 6000
+							},
+							"valuesFormatting": "parseText"
+						}
+					}
+				]
+			},
+			{
+				"type": "mago-mi",
+				"program": "./out/src/mago.js",
+				"runtime": "node",
+				"label": "Mago-MI",
+				"variables": {
+					"FileBasenameNoExt": "code-debug.getFileBasenameNoExt",
+					"FileNameNoExt": "code-debug.getFileNameNoExt"
+				},
+				"configurationAttributes": {
+					"launch": {
+						"required": [
+							"target"
+						],
+						"properties": {
+							"target": {
+								"type": "string",
+								"description": "Path of executable"
+							},
+							"arguments": {
+								"type": "string",
+								"description": "Arguments to append after the executable"
+							},
+							"cwd": {
+								"type": "string",
+								"description": "project path"
+							},
+							"magomipath": {
+								"type": "string",
+								"description": "Path to the mago-mi executable or the command if in PATH",
+								"default": "mago-mi"
+							},
+							"env": {
+								"type": "object",
+								"description": "Environment overriding the mago-mi (and in turn also the process) environment",
+								"default": null
+							},
+							"debugger_args": {
+								"type": "array",
+								"description": "Additional arguments to pass to mago",
+								"default": []
+							},
+							"valuesFormatting": {
+								"type": "string",
+								"description": "Set the way of showing variable values. 'disabled' - show value as is, 'parseText' - parse debuggers output text into structure, 'prettyPrinters' - enable debuggers custom pretty-printers if there are any",
+								"default": "parseText",
+								"enum": [
+									"disabled",
+									"parseText",
+									"prettyPrinters"
+								]
+							},
+							"printCalls": {
+								"type": "boolean",
+								"description": "Prints all mago calls to the console",
+								"default": false
+							},
+							"showDevDebugOutput": {
+								"type": "boolean",
+								"description": "Prints all mago responses to the console",
+								"default": false
+							},
+							"autorun": {
+								"type": "array",
+								"description": "mago commands to run when starting to debug",
+								"default": []
+							},
+							"registerLimit": {
+								"type": "string",
+								"description": "List of numbers specifying the registers to display. An empty string indicates that the contents of all the registers must be returned.",
+								"default": ""
+							}
+						}
+					},
+					"attach": {
+						"required": [
+							"target"
+						],
+						"properties": {
+							"target": {
+								"type": "string",
+								"description": "PID of running program or program name"
+							},
+							"valuesFormatting": {
+								"type": "string",
+								"description": "Set the way of showing variable values. 'disabled' - show value as is, 'parseText' - parse debuggers output text into structure, 'prettyPrinters' - enable debuggers custom pretty-printers if there are any",
+								"default": "parseText",
+								"enum": [
+									"disabled",
+									"parseText",
+									"prettyPrinters"
+								]
+							},
+							"printCalls": {
+								"type": "boolean",
+								"description": "Prints all mago calls to the console",
+								"default": false
+							},
+							"showDevDebugOutput": {
+								"type": "boolean",
+								"description": "Prints all mago responses to the console",
+								"default": false
+							},
+							"executable": {
+								"type": "string",
+								"description": "Path of executable for debugging symbols"
+							},
+							"magomipath": {
+								"type": "string",
+								"description": "Path to the mago-mi executable or the command if in PATH",
+								"default": "mago-mi"
+							},
+							"env": {
+								"type": "object",
+								"description": "Environment overriding the mago-mi (and in turn also the process) environment",
+								"default": null
+							},
+							"debugger_args": {
+								"type": "array",
+								"description": "Additional arguments to pass to mago",
+								"default": []
+							},
+							"cwd": {
+								"type": "string",
+								"description": "project path",
+								"default": "${workspaceRoot}"
+							},
+							"autorun": {
+								"type": "array",
+								"description": "mago commands to run when starting to debug",
+								"default": []
+							},
+							"stopAtConnect": {
+								"type": "boolean",
+								"description": "Whether debugger should stop after connecting to target",
+								"default": false
+							},
+							"registerLimit": {
+								"type": "string",
+								"description": "List of numbers specifying the registers to display. An empty string indicates that the contents of all the registers must be returned.",
+								"default": ""
+							}
+						}
+					}
+				},
+				"initialConfigurations": [
+					{
+						"name": "Debug",
+						"type": "mago-mi",
+						"request": "launch",
+						"target": "./bin/executable",
+						"cwd": "${workspaceRoot}",
+						"valuesFormatting": "parseText"
+					}
+				],
+				"configurationSnippets": [
+					{
+						"label": "Mago: Launch Program",
+						"description": "Starts the program using mago-mi",
+						"body": {
+							"type": "mago-mi",
+							"request": "launch",
+							"name": "${2:Launch Program}",
+							"target": "${1:./bin/executable}",
+							"cwd": "^\"\\${workspaceRoot}\"",
+							"valuesFormatting": "parseText"
+						}
+					},
+					{
+						"label": "Mago: Attach to PID",
+						"description": "Attaches to a running program pid using mago-mi",
+						"body": {
+							"type": "mago-mi",
+							"request": "attach",
+							"name": "${2:Attach to PID}",
+							"target": "${1:[PID]}",
+							"cwd": "^\"\\${workspaceRoot}\"",
+							"valuesFormatting": "parseText"
+						}
+					}
+				]
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "tsc -p ./",
+		"test": "mocha",
+		"coverage": "nyc npm test",
+		"compile": "tsc -watch -p ./",
+		"lint": "eslint . --ext .ts --format compact",
+		"lint-and-fix": "eslint . --ext .ts --fix --format compact",
+		"spellcheck-docs": "cspell lint **/*.md",
+		"lint-docs": "markdownlint **/*.md",
+		"link-check": "markdown-link-check *.md",
+		"prettier-write-docs": "prettier --write **/*.md",
+		"prettier-check-docs": "prettier --check **/*.md"
+	},
+	"dependencies": {
+		"ssh2": "^1.6.0",
+		"vscode-debugadapter": "^1.45.0",
+		"vscode-debugprotocol": "^1.45.0"
+	},
+	"devDependencies": {
+		"@istanbuljs/nyc-config-typescript": "^1.0.2",
+		"@types/mocha": "^5.2.6",
+		"@types/node": "^11.15.54",
+		"@types/ssh2": "^1.15.0",
+		"@types/vscode": "^1.55.0",
+		"@typescript-eslint/eslint-plugin": "^5.22.0",
+		"@typescript-eslint/parser": "^5.22.0",
+		"cspell": "^6.0.0",
+		"eslint": "^8.14.0",
+		"eslint-plugin-deprecation": "^1.3.2",
+		"eslint-plugin-no-null": "^1.0.2",
+		"markdown-link-check": "^3.10.3",
+		"markdownlint-cli": "^0.31.1",
+		"mocha": "^9.1.3",
+		"nyc": "^15.1.0",
+		"prettier": "^2.6.2",
+		"ts-node": "^10.8.0",
+		"typescript": "^4.3.2"
+	},
+	"__metadata": {
+		"id": "834c44ce-c4a8-4cfe-9de6-27b5a5531e6b",
+		"publisherDisplayName": "chenzhiy2001",
+		"publisherId": "chenzhiy2001"
+	}
+}

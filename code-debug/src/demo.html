@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+	<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Cat Coding</title>
+	</head>
+	<body>
+	<div>
+	<table id="regTable" style="float: left;">
+
+	
+
+	</table>
+	<div>
+	<table id="memTable">
+
+	
+
+	</table>
+
+
+	<h2>privilege:</h2><h4 id="privilege">loading</h4>
+	<h2>pc:       </h2><h4 id="pc">loading</h4>
+	<h2>SBI:      </h2><h4 id="sbi">loading</h4>
+	</div>
+</div>
+</body>
+<script>
+
+	// const riscvRegNames = ${riscvRegNames};
+	// const vscode = acquireVsCodeApi();
+	// function getMemRangeList(){
+
+	// 	return [{from:0x80200000,length:16},{from:0x80201000,length:32}];
+	// }
+	window.addEventListener('message', event => {
+		const message = event.data; // The JSON data our extension sent
+		if(message.regValues){
+			document.getElementById('regTable').innerHTML="";
+			let regs = message.regValues.flat().flat();
+			for(let i = 0;i<regs.length;i+=4){
+				document.getElementById('regTable').innerHTML+=     `
+				<tbody>
+				<tr>
+					<td>\${riscvRegNames[  regs[i+1]  ] }</td>
+					<td>\${regs[i+3]}</td>
+				</tr>
+				</tbody>
+				`;
+			}
+			let pc = regs[4*riscvRegNames.indexOf("pc")+3];
+			document.getElementById('pc').innerHTML=pc;
+			if(parseInt(pc)<parseInt(0x80200000)){ 
+				document.getElementById('sbi').innerHTML="yes";
+				//czy TODO not completely correct. There's small parts BEFORE SBI
+			}
+			else{
+				document.getElementById('sbi').innerHTML="no";
+			}
+		}
+		if(message.memValues){
+			// document.getElementById('memTable').innerHTML+=JSON.stringify(message.memValues)+"<br>";
+			document.getElementById('memTable').innerHTML="";
+			
+
+
+			
+
+		}
+		if(message.memRangeQuery){
+			vscode.postMessage(getMemRangeList());
+		}
+	});
+    </script>
+
+	</html>
