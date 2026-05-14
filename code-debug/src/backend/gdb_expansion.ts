@@ -1,3 +1,5 @@
+// Ported from code-debug (os-debug) src/backend/gdb_expansion.ts
+
 import { VariableObject } from "./backend";
 import { MINode } from "./mi_parse";
 
@@ -107,7 +109,7 @@ export function expandValue(variableCreate: (arg: VariableObject | string, optio
 			stack.push("[0]");
 			let val = parseValue();
 			stack.pop();
-			if(typeof val == "string" && val.endsWith('>')){
+			if (typeof val == "string" && val.endsWith('>')) {
 				val = val.substring(0, val.length - 2);
 			}
 			values.push(createValue("[0]", val));
@@ -186,7 +188,7 @@ export function expandValue(variableCreate: (arg: VariableObject | string, optio
 			return parseCString();
 		else if (value[0] == '{')
 			return parseTupleOrList();
-		else if(value.startsWith("std::")){
+		else if (value.startsWith("std::")) {
 			const eqPos = value.indexOf("=");
 			value = value.substring(eqPos + 2);
 			return parseValue();
@@ -202,7 +204,7 @@ export function expandValue(variableCreate: (arg: VariableObject | string, optio
 		value = value.substring(variableMatch[0].length).trim();
 		let name = variable = variableMatch[1].trim();
 		const tmpName = name.split(" ");
-		if(tmpName.length > 1 && !name.includes("anonymous union") && !name.includes(',')){
+		if (tmpName.length > 1 && !name.includes("anonymous union") && !name.includes(',')) {
 			name = tmpName[tmpName.length - 1];
 		}
 		if (pushToStack)

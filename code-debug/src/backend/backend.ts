@@ -1,10 +1,13 @@
+// Ported from code-debug (os-debug) src/backend/backend.ts
+// Removed SSH, IBackend (not needed), kept VariableObject, MIError, and type definitions.
+
 import { MINode } from "./mi_parse";
-import { DebugProtocol } from "vscode-debugprotocol/lib/debugProtocol";
+import { DebugProtocol } from "@vscode/debugprotocol";
 
 export type ValuesFormattingMode = "disabled" | "parseText" | "prettyPrinters";
 
 export interface Breakpoint {
-	id?:number;
+	id?: number;
 	file?: string;
 	line?: number;
 	raw?: string;
@@ -24,7 +27,7 @@ export interface Stack {
 	address: string;
 	function: string;
 	fileName: string;
-	file: string; // with file path
+	file: string;
 	line: number;
 }
 
@@ -40,51 +43,9 @@ export interface RegisterValue {
 	value: string;
 }
 
-export interface SSHArguments {
-	forwardX11: boolean;
-	host: string;
-	keyfile: string;
-	password: string;
-	useAgent: boolean;
-	cwd: string;
-	port: number;
-	user: string;
-	remotex11screen: number;
-	x11port: number;
-	x11host: string;
-	bootstrap: string;
-	sourceFileMap: { [index: string]: string };
-}
-
 export interface Register {
 	name: string;
 	valueStr: string;
-}
-
-export interface IBackend {
-	load(cwd: string, target: string, procArgs: string, separateConsole: string, autorun: string[]): Thenable<any>;
-	ssh(args: SSHArguments, cwd: string, target: string, procArgs: string, separateConsole: string, attach: boolean, autorun: string[]): Thenable<any>;
-	attach(cwd: string, executable: string, target: string, autorun: string[]): Thenable<any>;
-	connect(cwd: string, executable: string, target: string, autorun: string[]): Thenable<any>;
-	start(runToStart: boolean): Thenable<boolean>;
-	stop(): void;
-	detach(): void;
-	interrupt(): Thenable<boolean>;
-	continue(): Thenable<boolean>;
-	next(): Thenable<boolean>;
-	step(): Thenable<boolean>;
-	stepOut(): Thenable<boolean>;
-	loadBreakPoints(breakpoints: Breakpoint[]): Thenable<[boolean, Breakpoint][]>;
-	addBreakPoint(breakpoint: Breakpoint): Thenable<[boolean, Breakpoint]>;
-	removeBreakPoint(breakpoint: Breakpoint): Thenable<boolean>;
-	clearBreakPoints(source?: string): Thenable<any>;
-	getThreads(): Thenable<Thread[]>;
-	getStack(startFrame: number, maxLevels: number, thread: number): Thenable<Stack[]>;
-	getStackVariables(thread: number, frame: number): Thenable<Variable[]>;
-	evalExpression(name: string, thread: number, frame: number): Thenable<any>;
-	isReady(): boolean;
-	changeVariable(name: string, rawValue: string): Thenable<any>;
-	examineMemory(from: number, to: number): Thenable<any>;
 }
 
 export class VariableObject {
@@ -98,7 +59,7 @@ export class VariableObject {
 	dynamic: boolean;
 	displayhint: string;
 	hasMore: boolean;
-	id: number;
+	id: number = 0;
 	constructor(node: any) {
 		this.name = MINode.valueOf(node, "name");
 		this.exp = MINode.valueOf(node, "exp");
@@ -109,7 +70,6 @@ export class VariableObject {
 		this.frozen = !!MINode.valueOf(node, "frozen");
 		this.dynamic = !!MINode.valueOf(node, "dynamic");
 		this.displayhint = MINode.valueOf(node, "displayhint");
-		// TODO: use has_more when it's > 0
 		this.hasMore = !!MINode.valueOf(node, "has_more");
 	}
 

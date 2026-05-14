@@ -1,3 +1,6 @@
+// Ported from code-debug (os-debug) src/backend/mi_parse.ts
+// Original: https://github.com/WebFreak001/code-debug
+
 export interface MIInfo {
 	token: number;
 	outOfBandRecord: {
@@ -7,7 +10,7 @@ export interface MIInfo {
 		output: [string, any][];
 		content: string;
 	}[];
-	resultRecords: { resultClass: string; results: [string, any][] };
+	resultRecords: { resultClass: string; results: [string, any][] } | undefined;
 }
 
 const octalMatch = /^[0-7]{3}/;
@@ -54,7 +57,7 @@ export class MINode implements MIInfo {
 		output: [string, any][];
 		content: string;
 	}[];
-	resultRecords: { resultClass: string; results: [string, any][] };
+	resultRecords: { resultClass: string; results: [string, any][] } | undefined;
 
 	constructor(
 		token: number,
@@ -65,7 +68,7 @@ export class MINode implements MIInfo {
 			output: [string, any][];
 			content: string;
 		}[],
-		result: { resultClass: string; results: [string, any][] }
+		result: { resultClass: string; results: [string, any][] } | undefined
 	) {
 		this.token = token;
 		this.outOfBandRecord = info;
@@ -262,6 +265,7 @@ export function parseMI(output: string): MINode {
 
 		if (match[2]) {
 			const classMatch = asyncClassRegex.exec(output);
+			if (!classMatch) break;
 			output = output.substring(classMatch[0].length);
 			const asyncRecord = {
 				isStream: false,
@@ -294,7 +298,7 @@ export function parseMI(output: string): MINode {
 		}
 		resultRecords = {
 			resultClass: match[2],
-			results: [],
+			results: [] as [string, any][],
 		};
 		let result;
 		while ((result = parseCommaResult())) resultRecords.results.push(result);
@@ -302,5 +306,5 @@ export function parseMI(output: string): MINode {
 		output = output.replace(newlineRegex, "");
 	}
 
-	return new MINode(token, outOfBandRecord || [], resultRecords);
+	return new MINode(token ?? 0, outOfBandRecord || [], resultRecords);
 }

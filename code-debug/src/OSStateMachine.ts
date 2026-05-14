@@ -1,11 +1,10 @@
+// Ported from code-debug src/OSStateMachine.ts
 // A simple state machine powering breakpoint group switching functionality.
 // If you don't know how the following code works, please check
 // https://dev.to/davidkpiano/you-don-t-need-a-library-for-state-machines-k7h
 //
 // You can also visualize this state machine interactively at
 // https://stately.ai/registry/editor/8e3d023e-bd57-45ad-9a3c-d2ad1b304cc7?machineId=c1226f8e-8ac5-4b6c-8239-eda810f55a09&mode=Simulate
-
-import { MI2DebugSession } from "./mibase";
 
 export type Action = {
 	type: DebuggerActions;
@@ -49,6 +48,7 @@ export enum DebuggerActions {
 	low_level_switch_breakpoint_group_to_high_level,
 	high_level_switch_breakpoint_group_to_low_level,
 	try_get_next_breakpoint_group_name,
+	check_stop_in_kernel,
 }
 
 // the OSStateMachine const is exported while the OSStateMachine type is NOT.
@@ -56,13 +56,12 @@ export enum DebuggerActions {
 export const OSStateMachine: OSStateMachine = {
 	initial: OSStates.kernel,
 	states: {
-		[OSStates.kernel] : {
+		[OSStates.kernel]: {
 			on: {
 				[OSEvents.STOPPED]: {
 					target: OSStates.kernel,
 					actions: [
-						{ type: DebuggerActions.try_get_next_breakpoint_group_name }, //if got, save it to a variable. if not, stay the same. initial is "initproc"
-						{ type: DebuggerActions.check_if_kernel_to_user_border_yet }, //if yes, event `AT_KERNEL_TO_USER_BORDER` happens
+						{ type: DebuggerActions.check_stop_in_kernel },
 					]
 				},
 				[OSEvents.AT_KERNEL_TO_USER_BORDER]: {
@@ -78,7 +77,7 @@ export const OSStateMachine: OSStateMachine = {
 				[OSEvents.STOPPED]: {
 					target: OSStates.kernel_single_step_to_user,
 					actions: [
-						{ type: DebuggerActions.check_if_user_yet } //if yes, event `AT_USER` happens. if no, keep single stepping
+						{ type: DebuggerActions.check_if_user_yet } // if yes, event `AT_USER` happens. if no, keep single stepping
 					]
 				},
 				[OSEvents.AT_USER]: {
@@ -103,7 +102,7 @@ export const OSStateMachine: OSStateMachine = {
 				[OSEvents.AT_USER_TO_KERNEL_BORDER]: {
 					target: OSStates.user_single_step_to_kernel,
 					actions: [
-						{ type: DebuggerActions.start_consecutive_single_steps }// no need to `get_next_breakpoint_group_name` because the breakpoint group is already set when kernel changed to user breakpoint group
+						{ type: DebuggerActions.start_consecutive_single_steps }
 					]
 				}
 			}
@@ -113,7 +112,7 @@ export const OSStateMachine: OSStateMachine = {
 				[OSEvents.STOPPED]: {
 					target: OSStates.user_single_step_to_kernel,
 					actions: [
-						{ type: DebuggerActions.check_if_kernel_yet } //if yes, event `AT_KERNEL` happens. if no, keep single stepping
+						{ type: DebuggerActions.check_if_kernel_yet } // if yes, event `AT_KERNEL` happens. if no, keep single stepping
 					]
 				},
 				[OSEvents.AT_KERNEL]: {
@@ -131,22 +130,22 @@ export const OSStateMachine: OSStateMachine = {
 
 
 export class OSEvent {
-	type:OSEvents;
-	constructor(eventType:OSEvents){
+	type: OSEvents;
+	constructor(eventType: OSEvents) {
 		this.type = eventType;
 	}
-
 }
 
 export class OSState {
-	status:OSStates;
-	constructor(status:OSStates){
+	status: OSStates;
+	constructor(status: OSStates) {
 		this.status = status;
 	}
 }
 
 // Please do the returned actions!
-export function stateTransition(machine:OSStateMachine, state: OSState, event: OSEvent):[OSState, Action[]] {
+// Fix #5: actions was possibly undefined, now returns [] as fallback
+export function stateTransition(machine: OSStateMachine, state: OSState, event: OSEvent): [OSState, Action[]] {
 
 	const nextStateNode = machine
 		.states[state.status]
@@ -158,11 +157,5 @@ export function stateTransition(machine:OSStateMachine, state: OSState, event: O
 		status: nextStateNode.target
 	};
 
-	// // go through the actions to determine
-	// // what should be done
-	// nextStateNode.actions?.forEach(action => {
-	// 	doActions(action)
-	// });
-
-	return [nextState, nextStateNode.actions];
+	return [nextState, nextStateNode.actions ?? []];
 }
