@@ -1,56 +1,19 @@
-// A launch configuration that compiles the extension and then opens it inside a new window
 {
-	"version": "0.1.0",
-	"configurations": [
-		{
-			"name": "Launch Extension",
-			"type": "extensionHost",
-			"request": "launch",
-			"runtimeExecutable": "${execPath}",
-			"args": ["--extensionDevelopmentPath=${config:code-debug.sourceCodePath}" ],
-			"stopOnEntry": false,
-			"sourceMaps": true,
-			"outFiles": [
-				"${config:code-debug.sourceCodePath}/out/**/*.js"
-			],
-			"preLaunchTask": "compile"
-		},
-		{
-			"name": "code-debug server",
-			"type": "node",
-			"request": "launch",
-			"runtimeArgs": [ "--nolazy" ],
-			"program": "${config:code-debug.sourceCodePath}/src/gdb.ts",
-			"stopOnEntry": false,
-			"args": [ "--server=4711" ],
-			"sourceMaps": true,
-			"outFiles": [
-				"${config:code-debug.sourceCodePath}/out/**/*.js"
-			],
-			"cwd": "${config:code-debug.sourceCodePath}",
-			"preLaunchTask": "compile"
-		},
-		{
-			"name": "Launch Tests",
-			"type": "extensionHost",
-			"request": "launch",
-			"runtimeExecutable": "${execPath}",
-			"args": [
-				"--extensionDevelopmentPath=${config:code-debug.sourceCodePath}",
-				"--extensionTestsPath=${config:code-debug.sourceCodePath}/out/src/test/suite/index"
-			],
-			"stopOnEntry": false,
-			"sourceMaps": true,
-			"outFiles": [
-				"${config:code-debug.sourceCodePath}/out/**/*.js"
-			],
-			"preLaunchTask": "compile"
-		}
-	],
-	"compounds": [
-		{
-			"name": "Extension Debugging (Extension + Debug Server)",
-			"configurations": ["Launch Extension", "code-debug server"]
-		},
-	]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Extension Development Host",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/code-debug"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/code-debug/out/**/*.js"
+      ],
+      "preLaunchTask": "npm: compile",
+      "sourceMaps": true,
+      "internalConsoleOptions": "openOnSessionStart"
+    }
+  ]
 }

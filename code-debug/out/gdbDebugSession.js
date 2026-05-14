@@ -34,7 +34,6 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GDBDebugSession = void 0;
-const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const debugadapter_1 = require("@vscode/debugadapter");
 const mi2_1 = require("./backend/mi2");
@@ -78,11 +77,6 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
         this.kernelMemoryRanges = [];
         this.userMemoryRanges = [];
         this.programCounterId = 32; // RISC-V PC register id
-        this.pythonPath = opts.pythonPath;
-        this.tempDir = opts.tempDir;
-        this.logPath = path.join(opts.tempDir, 'ardb.log');
-        this.whitelistPath = path.join(opts.tempDir, 'poll_functions.txt');
-        this.groupedWhitelistPath = path.join(opts.tempDir, 'poll_functions_grouped.json');
     }
     // -----------------------------------------------------------------------
     // DAP: initialize
@@ -108,9 +102,6 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
             this.sendErrorResponse(response, 1, 'No program specified in launch configuration');
             return;
         }
-        if (!fs.existsSync(this.tempDir)) {
-            fs.mkdirSync(this.tempDir, { recursive: true });
-        }
         this.launchGDB();
         this.inferiorStarted = false;
         this.gdbReady = false;
@@ -123,12 +114,9 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
     attachRequest(response, args) {
         const config = args;
         this.cwd = config.cwd || process.cwd();
-        if (!config.qemuPath || !config.qemuArgs?.length) {
+        if (!config.remote && (!config.qemuPath || !config.qemuArgs?.length)) {
             this.sendErrorResponse(response, 103, '`qemuPath` and `qemuArgs` must be set in launch.json');
             return;
-        }
-        if (!fs.existsSync(this.tempDir)) {
-            fs.mkdirSync(this.tempDir, { recursive: true });
         }
         // Initialize OS debug state from launch.json config
         this.programCounterId = config.program_counter_id ?? 32;
@@ -214,20 +202,25 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
                 this.breakpointGroups.updateHookBreakpoint(normalized);
             }
         }
-        // Launch QEMU in the integrated terminal, then start GDB after a short delay
-        // to give QEMU time to open the GDB stub on :1234.
-        const qemuCmd = [config.qemuPath, ...config.qemuArgs];
-        this.runInTerminalRequest({ kind: 'integrated', title: 'QEMU', cwd: this.cwd, args: qemuCmd }, 15000, (termResponse) => {
-            if (termResponse.success === false) {
-                console.error('[ardb] Failed to launch QEMU in terminal');
-                this.sendEvent(new debugadapter_1.TerminatedEvent());
-                return;
-            }
-            // Give QEMU ~1s to open the GDB stub before GDB tries to connect
-            setTimeout(() => {
-                this.launchGDB(config);
-            }, 1000);
-        });
+        if (config.remote) {
+            this.launchGDB(config);
+        }
+        else {
+            // Launch QEMU in the integrated terminal, then start GDB after a short delay
+            // to give QEMU time to open the GDB stub on :1234.
+            const qemuCmd = [config.qemuPath, ...config.qemuArgs];
+            this.runInTerminalRequest({ kind: 'integrated', title: 'QEMU', cwd: this.cwd, args: qemuCmd }, 15000, (termResponse) => {
+                if (termResponse.success === false) {
+                    console.error('[ardb] Failed to launch QEMU in terminal');
+                    this.sendEvent(new debugadapter_1.TerminatedEvent());
+                    return;
+                }
+                // Give QEMU ~1s to open the GDB stub before GDB tries to connect
+                setTimeout(() => {
+                    this.launchGDB(config);
+                }, 1000);
+            });
+        }
         this.inferiorStarted = false;
         this.gdbReady = false;
         this.isAttachMode = true;
@@ -563,13 +556,7 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
                 for (let i = 0; i < reversedPath.length; i++) {
                     const node = reversedPath[i];
                     const frameId = threadId * 10000 + i;
-                    let name;
-                    if (node.type === 'async') {
-                        name = `[async CID:${node.cid}] ${node.func}`;
-                    }
-                    else {
-                        name = node.func || '<unknown>';
-                    }
+                    const name = node.func || '<unknown>';
                     const sf = new debugadapter_1.StackFrame(frameId, name, (node.fullname || node.file) ? new debugadapter_1.Source(node.file || '', node.fullname || node.file || '') : undefined, node.line || 0, 0);
                     if (node.addr) {
                         sf.instructionPointerReference = node.addr;
@@ -689,56 +676,6 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
     // -----------------------------------------------------------------------
     customRequest(command, response, args) {
         switch (command) {
-            case 'ardb-get-snapshot':
-                this.handleArdGetSnapshot(response).catch(err => {
-                    this.sendErrorResponse(response, 100, err.message);
-                });
-                break;
-            case 'ardb-reset':
-                this.handleArdReset(response).catch(err => {
-                    this.sendErrorResponse(response, 101, err.message);
-                });
-                break;
-            case 'ardb-gen-whitelist':
-                this.handleArdGenWhitelist(response).catch(err => {
-                    this.sendErrorResponse(response, 102, err.message);
-                });
-                break;
-            case 'ardb-trace':
-                this.handleArdTrace(response, args).catch(err => {
-                    this.sendErrorResponse(response, 103, err.message);
-                });
-                break;
-            case 'ardb-get-whitelist-grouped':
-                this.handleArdGetWhitelistGrouped(response).catch(err => {
-                    this.sendErrorResponse(response, 104, err.message);
-                });
-                break;
-            case 'ardb-get-whitelist-candidates':
-                this.handleArdGetWhitelistCandidates(response).catch(err => {
-                    this.sendErrorResponse(response, 105, err.message);
-                });
-                break;
-            case 'ardb-update-whitelist':
-                this.handleArdUpdateWhitelist(response, args).catch(err => {
-                    this.sendErrorResponse(response, 106, err.message);
-                });
-                break;
-            case 'ardb-infer-trace-root':
-                this.handleArdInferTraceRoot(response).catch(err => {
-                    this.sendErrorResponse(response, 107, err.message);
-                });
-                break;
-            case 'ardb-get-log-entries':
-                this.handleArdGetLogEntries(response, args).catch(err => {
-                    this.sendErrorResponse(response, 108, err.message);
-                });
-                break;
-            case 'ardb-execute-command':
-                this.handleArdExecuteCommand(response, args).catch(err => {
-                    this.sendErrorResponse(response, 109, err.message);
-                });
-                break;
             // OS debug commands
             case 'setBorder':
                 if (this.breakpointGroups && args) {
@@ -821,142 +758,15 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
         }
     }
     // -----------------------------------------------------------------------
-    // Custom request handlers
-    // -----------------------------------------------------------------------
-    async handleArdGetSnapshot(response) {
-        if (!this.miDebugger) {
-            response.body = { snapshot: null };
-            this.sendResponse(response);
-            return;
-        }
-        const record = await this.miDebugger.sendCliCommand('ardb-get-snapshot');
-        const output = this.getConsoleOutput(record);
-        const snapshot = this.parseSnapshot(output);
-        response.body = { snapshot: snapshot || null };
-        this.sendResponse(response);
-    }
-    async handleArdReset(response) {
-        if (!this.miDebugger) {
-            response.body = {};
-            this.sendResponse(response);
-            return;
-        }
-        await this.miDebugger.sendCliCommand('ardb-reset');
-        if (fs.existsSync(this.logPath)) {
-            fs.writeFileSync(this.logPath, '');
-        }
-        response.body = {};
-        this.sendResponse(response);
-    }
-    async handleArdGenWhitelist(response) {
-        if (!this.miDebugger) {
-            response.body = { groupedWhitelist: null };
-            this.sendResponse(response);
-            return;
-        }
-        await this.miDebugger.sendCliCommand('ardb-gen-whitelist');
-        const grouped = this.readGroupedWhitelistFromDisk();
-        response.body = { groupedWhitelist: grouped || null };
-        this.sendResponse(response);
-    }
-    async handleArdTrace(response, args) {
-        if (!this.miDebugger) {
-            response.body = {};
-            this.sendResponse(response);
-            return;
-        }
-        const symbol = args?.symbol || '';
-        await this.miDebugger.sendCliCommand(`ardb-trace ${symbol}`);
-        response.body = {};
-        this.sendResponse(response);
-    }
-    async handleArdGetWhitelistGrouped(response) {
-        const grouped = this.readGroupedWhitelistFromDisk();
-        if (grouped) {
-            response.body = { groupedWhitelist: grouped };
-            this.sendResponse(response);
-            return;
-        }
-        if (!this.miDebugger) {
-            response.body = { groupedWhitelist: null };
-            this.sendResponse(response);
-            return;
-        }
-        const record = await this.miDebugger.sendCliCommand('ardb-get-whitelist-grouped');
-        const output = this.getConsoleOutput(record);
-        const parsed = this.parseJsonFromOutput(output);
-        response.body = { groupedWhitelist: parsed || null };
-        this.sendResponse(response);
-    }
-    async handleArdGetWhitelistCandidates(response) {
-        const candidates = this.readWhitelistCandidatesFromDisk();
-        response.body = { candidates };
-        this.sendResponse(response);
-    }
-    async handleArdUpdateWhitelist(response, args) {
-        if (!this.miDebugger) {
-            response.body = {};
-            this.sendResponse(response);
-            return;
-        }
-        const enabledCrates = args?.enabledCrates || [];
-        const payload = JSON.stringify({ enabled_crates: enabledCrates });
-        await this.miDebugger.sendCliCommand(`ardb-update-whitelist ${payload}`);
-        response.body = {};
-        this.sendResponse(response);
-    }
-    async handleArdInferTraceRoot(response) {
-        if (!this.miDebugger) {
-            response.body = { inferredTraceRoot: null };
-            this.sendResponse(response);
-            return;
-        }
-        const record = await this.miDebugger.sendCliCommand('ardb-infer-trace-root');
-        const output = this.getConsoleOutput(record);
-        const result = this.parseJsonFromOutput(output);
-        response.body = { inferredTraceRoot: result || null };
-        this.sendResponse(response);
-    }
-    async handleArdGetLogEntries(response, args) {
-        const cid = args?.cid;
-        let entries = [];
-        if (cid !== undefined && fs.existsSync(this.logPath)) {
-            try {
-                const content = fs.readFileSync(this.logPath, 'utf-8');
-                const lines = content.split('\n');
-                const cidPattern = new RegExp(`coro#${cid}`);
-                entries = lines.filter(line => cidPattern.test(line)).slice(-10);
-            }
-            catch {
-                // ignore read errors
-            }
-        }
-        response.body = { entries };
-        this.sendResponse(response);
-    }
-    async handleArdExecuteCommand(response, args) {
-        if (!this.miDebugger) {
-            response.body = { result: '' };
-            this.sendResponse(response);
-            return;
-        }
-        const command = args?.command || '';
-        const record = await this.miDebugger.sendCliCommand(command);
-        const result = this.getConsoleOutput(record);
-        response.body = { result };
-        this.sendResponse(response);
-    }
-    // -----------------------------------------------------------------------
     // GDB subprocess management (via MI2)
     // -----------------------------------------------------------------------
     launchGDB(attachConfig) {
         const gdbPath = attachConfig?.gdbpath || 'gdb';
         const gdbArgs = [
             '--interpreter=mi2',
-            '-ex', `python import sys; sys.path.insert(0, '${this.pythonPath}'); import async_rust_debugger`,
             '-ex', 'set pagination off',
         ];
-        const env = { ...process.env, ASYNC_RUST_DEBUGGER_TEMP_DIR: this.tempDir };
+        const env = { ...process.env };
         this.miDebugger = new mi2_1.MI2(gdbPath, gdbArgs, attachConfig?.debugger_args || [], env);
         // Wire up events
         this.miDebugger.on('msg', (type, msg) => {
@@ -1477,44 +1287,6 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
         this.createdVarObjects.length = 0;
         this.varRefMap.clear();
         this.nextVarRef = 1;
-    }
-    readGroupedWhitelistFromDisk() {
-        try {
-            if (fs.existsSync(this.groupedWhitelistPath)) {
-                const content = fs.readFileSync(this.groupedWhitelistPath, 'utf-8');
-                const grouped = JSON.parse(content);
-                if (grouped.version !== undefined && grouped.crates) {
-                    return grouped;
-                }
-            }
-        }
-        catch {
-            // ignore
-        }
-        return undefined;
-    }
-    readWhitelistCandidatesFromDisk() {
-        try {
-            if (fs.existsSync(this.whitelistPath)) {
-                const content = fs.readFileSync(this.whitelistPath, 'utf-8');
-                const candidates = [];
-                for (const line of content.split('\n')) {
-                    const trimmed = line.trim();
-                    if (trimmed && !trimmed.startsWith('#')) {
-                        const parts = trimmed.split(/\s+/);
-                        const symbol = parts.length >= 2 ? parts[1] : trimmed;
-                        if (symbol) {
-                            candidates.push(symbol);
-                        }
-                    }
-                }
-                return candidates;
-            }
-        }
-        catch {
-            // ignore
-        }
-        return [];
     }
 }
 exports.GDBDebugSession = GDBDebugSession;

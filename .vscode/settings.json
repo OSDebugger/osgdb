@@ -1,27 +1,3 @@
-// Place your settings in this file to overwrite default and user settings.
 {
-	"editor.insertSpaces": false,
-	"[markdown]": {
-		"editor.defaultFormatter": "esbenp.prettier-vscode",
-		"editor.formatOnSave": true,
-		"editor.rulers": [80],
-		"editor.wordWrap": "bounded",
-		"editor.wordWrapColumn": 80
-	},
-	"files.associations": {
-		// VSCode defaults these to Markdown instead of ignore files
-		".markdownlintignore": "ignore",
-		".prettierignore": "ignore"
-	},
-	"files.exclude": {
-		"out": false // set this to true to hide the "out" folder with the compiled JS files
-	},
-	"mochaExplorer.timeout": 999999, // Set large so debugging doesn't trigger mocha timeout
-	"search.exclude": {
-		"**/node_modules": false,
-		"${config:code-debug.sourceCodePath}/out": true,
-	},
-	"testExplorer.useNativeTesting": true, // Use VSCode Native Test Explorer
-	"typescript.tsdk": "${config:code-debug.sourceCodePath}/node_modules/typescript/lib", // we want to use the TS server from our node_modules folder to control its version
-	"code-debug.sourceCodePath":"${workspaceRoot}/code-debug"
+  "typescript.tsdk": "${workspaceFolder}/code-debug/node_modules/typescript/lib"
 }

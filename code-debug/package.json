@@ -46,7 +46,12 @@
             }
           },
           "attach": {
-            "required": ["target", "cwd", "qemuPath", "qemuArgs"],
+            "required": [
+              "target",
+              "cwd",
+              "qemuPath",
+              "qemuArgs"
+            ],
             "properties": {
               "target": {
                 "type": "string",
@@ -109,16 +114,26 @@
               "kernel_memory_ranges": {
                 "type": "array",
                 "description": "Kernel address ranges as [start, end) hex string pairs",
-                "default": [["0xefffffffffffffff", "0xffffffffffffffff"]]
+                "default": [
+                  [
+                    "0xefffffffffffffff",
+                    "0xffffffffffffffff"
+                  ]
+                ]
               },
               "user_memory_ranges": {
                 "type": "array",
                 "description": "User address ranges as [start, end) hex string pairs",
-                "default": [["0x0000000000000000", "0xe000000000000000"]]
+                "default": [
+                  [
+                    "0x0000000000000000",
+                    "0xe000000000000000"
+                  ]
+                ]
               },
               "border_breakpoints": {
                 "type": "array",
-                "description": "Border breakpoints that mark kernel↔user transitions",
+                "description": "Border breakpoints that mark kernel\u2194user transitions",
                 "default": []
               },
               "hook_breakpoints": {
@@ -155,23 +170,23 @@
             "executable": "${workspaceFolder}/os/target/riscv64gc-unknown-none-elf/release/os",
             "first_breakpoint_group": "kernel",
             "program_counter_id": 32,
-            "kernel_memory_ranges": [["0xefffffffffffffff", "0xffffffffffffffff"]],
-            "user_memory_ranges": [["0x0000000000000000", "0xe000000000000000"]]
+            "kernel_memory_ranges": [
+              [
+                "0xefffffffffffffff",
+                "0xffffffffffffffff"
+              ]
+            ],
+            "user_memory_ranges": [
+              [
+                "0x0000000000000000",
+                "0xe000000000000000"
+              ]
+            ]
           }
         ]
       }
     ],
     "commands": [
-      {
-        "command": "ardb.openInspector",
-        "title": "Open Async Inspector",
-        "icon": "$(debug-console)"
-      },
-      {
-        "command": "ardb.traceFunction",
-        "title": "Trace Function",
-        "icon": "$(debug-start)"
-      },
       {
         "command": "ardb.setBorderBreakpointsFromLaunchJSON",
         "title": "ARD: Set Border Breakpoints from launch.json"
@@ -193,14 +208,7 @@
         "title": "ARD: Remove All Breakpoints"
       }
     ],
-    "menus": {
-      "editor/context": [
-        {
-          "command": "ardb.traceFunction",
-          "when": "editorLangId == rust"
-        }
-      ]
-    }
+    "menus": {}
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

@@ -1,11 +1,6 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
 import { ARDDebugAdapterFactory } from './debugAdapter';
-import { AsyncInspectorPanel } from './webview/asyncInspectorPanel';
 import { Border } from './breakpointGroups';
-
-let inspectorPanel: AsyncInspectorPanel | undefined;
-let whitelistWatcher: vscode.FileSystemWatcher | undefined;
 
 // Substitute common VS Code variables in a string from launch.json.
 // VS Code does not substitute variables when you read launch.json via the API.
@@ -33,11 +28,6 @@ export function activate(context: vscode.ExtensionContext) {
         createDebugAdapterTracker: (_session: vscode.DebugSession) => {
             return {
                 onDidSendMessage: (message: any) => {
-                    if (message.type === 'event' && message.event === 'stopped') {
-                        if (inspectorPanel) {
-                            inspectorPanel.onDebugStopped(_session, message.body);
-                        }
-                    }
                     if (message.type === 'event' && message.event === 'showInformationMessage') {
                         vscode.window.showInformationMessage(message.body);
                     }
@@ -49,46 +39,6 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
     context.subscriptions.push(trackerDisposable);
-
-    // Register command to open async inspector
-    const openInspectorCommand = vscode.commands.registerCommand('ardb.openInspector', () => {
-        if (!inspectorPanel) {
-            inspectorPanel = AsyncInspectorPanel.createOrShow(context.extensionUri);
-        } else {
-            inspectorPanel.reveal();
-        }
-    });
-
-    // Register command to trace function from editor
-    const traceFunctionCommand = vscode.commands.registerCommand('ardb.traceFunction', async () => {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            vscode.window.showWarningMessage('No active editor');
-            return;
-        }
-
-        const selection = editor.selection;
-        const document = editor.document;
-        const wordRange = document.getWordRangeAtPosition(selection.active);
-        if (!wordRange) {
-            vscode.window.showWarningMessage('No symbol at cursor');
-            return;
-        }
-
-        const symbol = document.getText(wordRange);
-        const debugSession = vscode.debug.activeDebugSession;
-        if (!debugSession || debugSession.type !== 'ardb') {
-            vscode.window.showWarningMessage('No active ARD debug session');
-            return;
-        }
-
-        try {
-            await debugSession.customRequest('ardb-trace', { symbol });
-            vscode.window.showInformationMessage(`Tracing function: ${symbol}`);
-        } catch (error) {
-            vscode.window.showErrorMessage(`Failed to trace function: ${error}`);
-        }
-    });
 
     // -----------------------------------------------------------------------
     // OS debug commands
@@ -177,71 +127,12 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        openInspectorCommand,
-        traceFunctionCommand,
         setBorderBreakpointsCmd,
         setHookBreakpointsCmd,
         setBreakpointAsBorderCmd,
         disableBorderCmd,
         removeAllBreakpointsCmd,
     );
-
-    // Open inspector automatically when debug session starts + setup whitelist watcher
-    const onDidStartDebugSession = vscode.debug.onDidStartDebugSession((session) => {
-        if (session.type === 'ardb') {
-            if (!inspectorPanel) {
-                inspectorPanel = AsyncInspectorPanel.createOrShow(context.extensionUri);
-            }
-
-            // Setup whitelist file watcher
-            const workspaceFolder = session.workspaceFolder?.uri.fsPath;
-            if (workspaceFolder) {
-                const whitelistPath = path.join(workspaceFolder, 'temp', 'poll_functions.txt');
-                whitelistWatcher = vscode.workspace.createFileSystemWatcher(
-                    new vscode.RelativePattern(
-                        path.dirname(whitelistPath),
-                        path.basename(whitelistPath),
-                    ),
-                );
-                whitelistWatcher.onDidChange(async () => {
-                    try {
-                        await session.customRequest('ardb-execute-command', {
-                            command: 'ardb-load-whitelist',
-                        });
-                    } catch (error) {
-                        console.error('Failed to reload whitelist:', error);
-                    }
-                });
-            }
-        }
-    });
-
-    context.subscriptions.push(onDidStartDebugSession);
-
-    // Clean up when debug session ends
-    const onDidTerminateDebugSession = vscode.debug.onDidTerminateDebugSession((session) => {
-        if (session.type === 'ardb') {
-            if (whitelistWatcher) {
-                whitelistWatcher.dispose();
-                whitelistWatcher = undefined;
-            }
-            if (inspectorPanel) {
-                inspectorPanel.dispose();
-                inspectorPanel = undefined;
-            }
-        }
-    });
-
-    context.subscriptions.push(onDidTerminateDebugSession);
 }
 
-export function deactivate() {
-    if (whitelistWatcher) {
-        whitelistWatcher.dispose();
-        whitelistWatcher = undefined;
-    }
-    if (inspectorPanel) {
-        inspectorPanel.dispose();
-        inspectorPanel = undefined;
-    }
-}
+export function deactivate() {}

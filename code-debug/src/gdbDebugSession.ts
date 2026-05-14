@@ -1,4 +1,3 @@
-import * as fs from 'fs';
 import * as path from 'path';
 import {
     DebugSession,
@@ -39,45 +38,6 @@ import {
 import { isKernelAddr, isUserAddr, parseAddr } from './addrSpace';
 
 // ---------------------------------------------------------------------------
-// Exported interfaces (used by asyncInspectorPanel and extension)
-// ---------------------------------------------------------------------------
-
-export interface SnapshotData {
-    thread_id: number;
-    path: Array<{
-        type: 'async' | 'sync';
-        cid: number | null;
-        func: string;
-        addr: string;
-        poll: number;
-        state: number | string;
-        file?: string;
-        fullname?: string;
-        line?: number;
-    }>;
-}
-
-export interface GroupedWhitelist {
-    version: number;
-    crates: {
-        [crateName: string]: {
-            is_user_crate: boolean;
-            symbols: Array<{
-                name: string;
-                file: string | null;
-                line: number | null;
-                kind: 'async' | 'sync';
-            }>;
-        };
-    };
-}
-
-export interface InferredTraceRoot {
-    trace_root: string | null;
-    all_async_frames: string[];
-}
-
-// ---------------------------------------------------------------------------
 // Attach request arguments
 // ---------------------------------------------------------------------------
 
@@ -90,6 +50,7 @@ export interface AttachRequestArguments extends DebugProtocol.AttachRequestArgum
     executable?: string;      // path to ELF for debug symbols
     autorun?: string[];
     stopAtConnect?: boolean;
+    remote?: boolean;
     qemuPath: string;
     qemuArgs: string[];
     program_counter_id?: number;
@@ -108,8 +69,7 @@ export interface AttachRequestArguments extends DebugProtocol.AttachRequestArgum
 // ---------------------------------------------------------------------------
 
 export interface GDBDebugSessionOptions {
-    pythonPath: string;
-    tempDir: string;
+    // reserved for future use
 }
 
 // ---------------------------------------------------------------------------
@@ -118,13 +78,7 @@ export interface GDBDebugSessionOptions {
 
 export class GDBDebugSession extends DebugSession {
 
-    // Configuration
-    private pythonPath: string;
-    private tempDir: string;
-    private logPath: string;
-    private whitelistPath: string;
-    private groupedWhitelistPath: string;
-
+    // Configuration (none currently)
     // MI2 backend
     private miDebugger: MI2 | undefined;
 
@@ -173,11 +127,6 @@ export class GDBDebugSession extends DebugSession {
 
     constructor(opts: GDBDebugSessionOptions) {
         super();
-        this.pythonPath = opts.pythonPath;
-        this.tempDir = opts.tempDir;
-        this.logPath = path.join(opts.tempDir, 'ardb.log');
-        this.whitelistPath = path.join(opts.tempDir, 'poll_functions.txt');
-        this.groupedWhitelistPath = path.join(opts.tempDir, 'poll_functions_grouped.json');
     }
 
     // -----------------------------------------------------------------------
@@ -216,10 +165,6 @@ export class GDBDebugSession extends DebugSession {
             return;
         }
 
-        if (!fs.existsSync(this.tempDir)) {
-            fs.mkdirSync(this.tempDir, { recursive: true });
-        }
-
         this.launchGDB();
         this.inferiorStarted = false;
         this.gdbReady = false;
@@ -238,13 +183,9 @@ export class GDBDebugSession extends DebugSession {
         const config = args as AttachRequestArguments;
         this.cwd = config.cwd || process.cwd();
 
-        if (!config.qemuPath || !config.qemuArgs?.length) {
+        if (!config.remote && (!config.qemuPath || !config.qemuArgs?.length)) {
             this.sendErrorResponse(response, 103, '`qemuPath` and `qemuArgs` must be set in launch.json');
             return;
-        }
-
-        if (!fs.existsSync(this.tempDir)) {
-            fs.mkdirSync(this.tempDir, { recursive: true });
         }
 
         // Initialize OS debug state from launch.json config
@@ -340,24 +281,28 @@ export class GDBDebugSession extends DebugSession {
             }
         }
 
-        // Launch QEMU in the integrated terminal, then start GDB after a short delay
-        // to give QEMU time to open the GDB stub on :1234.
-        const qemuCmd = [config.qemuPath, ...config.qemuArgs];
-        this.runInTerminalRequest(
-            { kind: 'integrated', title: 'QEMU', cwd: this.cwd, args: qemuCmd },
-            15000,
-            (termResponse) => {
-                if (termResponse.success === false) {
-                    console.error('[ardb] Failed to launch QEMU in terminal');
-                    this.sendEvent(new TerminatedEvent());
-                    return;
+        if (config.remote) {
+            this.launchGDB(config);
+        } else {
+            // Launch QEMU in the integrated terminal, then start GDB after a short delay
+            // to give QEMU time to open the GDB stub on :1234.
+            const qemuCmd = [config.qemuPath, ...config.qemuArgs];
+            this.runInTerminalRequest(
+                { kind: 'integrated', title: 'QEMU', cwd: this.cwd, args: qemuCmd },
+                15000,
+                (termResponse) => {
+                    if (termResponse.success === false) {
+                        console.error('[ardb] Failed to launch QEMU in terminal');
+                        this.sendEvent(new TerminatedEvent());
+                        return;
+                    }
+                    // Give QEMU ~1s to open the GDB stub before GDB tries to connect
+                    setTimeout(() => {
+                        this.launchGDB(config);
+                    }, 1000);
                 }
-                // Give QEMU ~1s to open the GDB stub before GDB tries to connect
-                setTimeout(() => {
-                    this.launchGDB(config);
-                }, 1000);
-            }
-        );
+            );
+        }
 
         this.inferiorStarted = false;
         this.gdbReady = false;
@@ -743,12 +688,7 @@ export class GDBDebugSession extends DebugSession {
                     const node = reversedPath[i];
                     const frameId = threadId * 10000 + i;
 
-                    let name: string;
-                    if (node.type === 'async') {
-                        name = `[async CID:${node.cid}] ${node.func}`;
-                    } else {
-                        name = node.func || '<unknown>';
-                    }
+                    const name = node.func || '<unknown>';
 
                     const sf = new StackFrame(
                         frameId,
@@ -914,66 +854,6 @@ export class GDBDebugSession extends DebugSession {
         args: any,
     ): void {
         switch (command) {
-            case 'ardb-get-snapshot':
-                this.handleArdGetSnapshot(response).catch(err => {
-                    this.sendErrorResponse(response, 100, err.message);
-                });
-                break;
-
-            case 'ardb-reset':
-                this.handleArdReset(response).catch(err => {
-                    this.sendErrorResponse(response, 101, err.message);
-                });
-                break;
-
-            case 'ardb-gen-whitelist':
-                this.handleArdGenWhitelist(response).catch(err => {
-                    this.sendErrorResponse(response, 102, err.message);
-                });
-                break;
-
-            case 'ardb-trace':
-                this.handleArdTrace(response, args).catch(err => {
-                    this.sendErrorResponse(response, 103, err.message);
-                });
-                break;
-
-            case 'ardb-get-whitelist-grouped':
-                this.handleArdGetWhitelistGrouped(response).catch(err => {
-                    this.sendErrorResponse(response, 104, err.message);
-                });
-                break;
-
-            case 'ardb-get-whitelist-candidates':
-                this.handleArdGetWhitelistCandidates(response).catch(err => {
-                    this.sendErrorResponse(response, 105, err.message);
-                });
-                break;
-
-            case 'ardb-update-whitelist':
-                this.handleArdUpdateWhitelist(response, args).catch(err => {
-                    this.sendErrorResponse(response, 106, err.message);
-                });
-                break;
-
-            case 'ardb-infer-trace-root':
-                this.handleArdInferTraceRoot(response).catch(err => {
-                    this.sendErrorResponse(response, 107, err.message);
-                });
-                break;
-
-            case 'ardb-get-log-entries':
-                this.handleArdGetLogEntries(response, args).catch(err => {
-                    this.sendErrorResponse(response, 108, err.message);
-                });
-                break;
-
-            case 'ardb-execute-command':
-                this.handleArdExecuteCommand(response, args).catch(err => {
-                    this.sendErrorResponse(response, 109, err.message);
-                });
-                break;
-
             // OS debug commands
             case 'setBorder':
                 if (this.breakpointGroups && args) {
@@ -1063,112 +943,6 @@ export class GDBDebugSession extends DebugSession {
     }
 
     // -----------------------------------------------------------------------
-    // Custom request handlers
-    // -----------------------------------------------------------------------
-
-    private async handleArdGetSnapshot(response: DebugProtocol.Response): Promise<void> {
-        if (!this.miDebugger) { response.body = { snapshot: null }; this.sendResponse(response); return; }
-        const record = await this.miDebugger.sendCliCommand('ardb-get-snapshot');
-        const output = this.getConsoleOutput(record);
-        const snapshot = this.parseSnapshot(output);
-        response.body = { snapshot: snapshot || null };
-        this.sendResponse(response);
-    }
-
-    private async handleArdReset(response: DebugProtocol.Response): Promise<void> {
-        if (!this.miDebugger) { response.body = {}; this.sendResponse(response); return; }
-        await this.miDebugger.sendCliCommand('ardb-reset');
-        if (fs.existsSync(this.logPath)) {
-            fs.writeFileSync(this.logPath, '');
-        }
-        response.body = {};
-        this.sendResponse(response);
-    }
-
-    private async handleArdGenWhitelist(response: DebugProtocol.Response): Promise<void> {
-        if (!this.miDebugger) { response.body = { groupedWhitelist: null }; this.sendResponse(response); return; }
-        await this.miDebugger.sendCliCommand('ardb-gen-whitelist');
-        const grouped = this.readGroupedWhitelistFromDisk();
-        response.body = { groupedWhitelist: grouped || null };
-        this.sendResponse(response);
-    }
-
-    private async handleArdTrace(response: DebugProtocol.Response, args: any): Promise<void> {
-        if (!this.miDebugger) { response.body = {}; this.sendResponse(response); return; }
-        const symbol = args?.symbol || '';
-        await this.miDebugger.sendCliCommand(`ardb-trace ${symbol}`);
-        response.body = {};
-        this.sendResponse(response);
-    }
-
-    private async handleArdGetWhitelistGrouped(response: DebugProtocol.Response): Promise<void> {
-        const grouped = this.readGroupedWhitelistFromDisk();
-        if (grouped) {
-            response.body = { groupedWhitelist: grouped };
-            this.sendResponse(response);
-            return;
-        }
-        if (!this.miDebugger) { response.body = { groupedWhitelist: null }; this.sendResponse(response); return; }
-        const record = await this.miDebugger.sendCliCommand('ardb-get-whitelist-grouped');
-        const output = this.getConsoleOutput(record);
-        const parsed = this.parseJsonFromOutput(output) as GroupedWhitelist | undefined;
-        response.body = { groupedWhitelist: parsed || null };
-        this.sendResponse(response);
-    }
-
-    private async handleArdGetWhitelistCandidates(response: DebugProtocol.Response): Promise<void> {
-        const candidates = this.readWhitelistCandidatesFromDisk();
-        response.body = { candidates };
-        this.sendResponse(response);
-    }
-
-    private async handleArdUpdateWhitelist(response: DebugProtocol.Response, args: any): Promise<void> {
-        if (!this.miDebugger) { response.body = {}; this.sendResponse(response); return; }
-        const enabledCrates = args?.enabledCrates || [];
-        const payload = JSON.stringify({ enabled_crates: enabledCrates });
-        await this.miDebugger.sendCliCommand(`ardb-update-whitelist ${payload}`);
-        response.body = {};
-        this.sendResponse(response);
-    }
-
-    private async handleArdInferTraceRoot(response: DebugProtocol.Response): Promise<void> {
-        if (!this.miDebugger) { response.body = { inferredTraceRoot: null }; this.sendResponse(response); return; }
-        const record = await this.miDebugger.sendCliCommand('ardb-infer-trace-root');
-        const output = this.getConsoleOutput(record);
-        const result = this.parseJsonFromOutput(output) as InferredTraceRoot | undefined;
-        response.body = { inferredTraceRoot: result || null };
-        this.sendResponse(response);
-    }
-
-    private async handleArdGetLogEntries(response: DebugProtocol.Response, args: any): Promise<void> {
-        const cid = args?.cid;
-        let entries: string[] = [];
-
-        if (cid !== undefined && fs.existsSync(this.logPath)) {
-            try {
-                const content = fs.readFileSync(this.logPath, 'utf-8');
-                const lines = content.split('\n');
-                const cidPattern = new RegExp(`coro#${cid}`);
-                entries = lines.filter(line => cidPattern.test(line)).slice(-10);
-            } catch {
-                // ignore read errors
-            }
-        }
-
-        response.body = { entries };
-        this.sendResponse(response);
-    }
-
-    private async handleArdExecuteCommand(response: DebugProtocol.Response, args: any): Promise<void> {
-        if (!this.miDebugger) { response.body = { result: '' }; this.sendResponse(response); return; }
-        const command = args?.command || '';
-        const record = await this.miDebugger.sendCliCommand(command);
-        const result = this.getConsoleOutput(record);
-        response.body = { result };
-        this.sendResponse(response);
-    }
-
-    // -----------------------------------------------------------------------
     // GDB subprocess management (via MI2)
     // -----------------------------------------------------------------------
 
@@ -1176,11 +950,10 @@ export class GDBDebugSession extends DebugSession {
         const gdbPath = attachConfig?.gdbpath || 'gdb';
         const gdbArgs = [
             '--interpreter=mi2',
-            '-ex', `python import sys; sys.path.insert(0, '${this.pythonPath}'); import async_rust_debugger`,
             '-ex', 'set pagination off',
         ];
 
-        const env = { ...process.env, ASYNC_RUST_DEBUGGER_TEMP_DIR: this.tempDir };
+        const env = { ...process.env };
 
         this.miDebugger = new MI2(gdbPath, gdbArgs, attachConfig?.debugger_args || [], env);
 
@@ -1616,8 +1389,8 @@ export class GDBDebugSession extends DebugSession {
         return (node as any)._consoleOutput || '';
     }
 
-    private parseSnapshot(output: string): SnapshotData | undefined {
-        return this.parseJsonFromOutput(output) as SnapshotData | undefined;
+    private parseSnapshot(output: string): any | undefined {
+        return this.parseJsonFromOutput(output);
     }
 
     private parseJsonFromOutput(output: string): any | undefined {
@@ -1758,41 +1531,4 @@ export class GDBDebugSession extends DebugSession {
         this.nextVarRef = 1;
     }
 
-    private readGroupedWhitelistFromDisk(): GroupedWhitelist | undefined {
-        try {
-            if (fs.existsSync(this.groupedWhitelistPath)) {
-                const content = fs.readFileSync(this.groupedWhitelistPath, 'utf-8');
-                const grouped = JSON.parse(content) as GroupedWhitelist;
-                if (grouped.version !== undefined && grouped.crates) {
-                    return grouped;
-                }
-            }
-        } catch {
-            // ignore
-        }
-        return undefined;
-    }
-
-    private readWhitelistCandidatesFromDisk(): string[] {
-        try {
-            if (fs.existsSync(this.whitelistPath)) {
-                const content = fs.readFileSync(this.whitelistPath, 'utf-8');
-                const candidates: string[] = [];
-                for (const line of content.split('\n')) {
-                    const trimmed = line.trim();
-                    if (trimmed && !trimmed.startsWith('#')) {
-                        const parts = trimmed.split(/\s+/);
-                        const symbol = parts.length >= 2 ? parts[1] : trimmed;
-                        if (symbol) {
-                            candidates.push(symbol);
-                        }
-                    }
-                }
-                return candidates;
-            }
-        } catch {
-            // ignore
-        }
-        return [];
-    }
 }

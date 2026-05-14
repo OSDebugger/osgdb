@@ -36,17 +36,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ARDDebugAdapterFactory = void 0;
 // src/debugAdapter.ts
 const vscode = __importStar(require("vscode"));
-const path = __importStar(require("path"));
 const gdbDebugSession_1 = require("./gdbDebugSession");
 class ARDDebugAdapterFactory {
     constructor(context) {
         this.context = context;
     }
     createDebugAdapterDescriptor(session, executable) {
-        const workspaceFolder = session.workspaceFolder?.uri.fsPath || process.cwd();
-        const pythonPath = this.context.extensionPath;
-        const tempDir = path.join(workspaceFolder, 'temp');
-        const debugSession = new gdbDebugSession_1.GDBDebugSession({ pythonPath, tempDir });
+        const debugSession = new gdbDebugSession_1.GDBDebugSession({});
         return new vscode.DebugAdapterInlineImplementation(debugSession);
     }
     dispose() {

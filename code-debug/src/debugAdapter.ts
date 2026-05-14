@@ -1,6 +1,5 @@
 // src/debugAdapter.ts
 import * as vscode from 'vscode';
-import * as path from 'path';
 import { GDBDebugSession } from './gdbDebugSession';
 
 export class ARDDebugAdapterFactory implements vscode.DebugAdapterDescriptorFactory {
@@ -14,11 +13,7 @@ export class ARDDebugAdapterFactory implements vscode.DebugAdapterDescriptorFact
         session: vscode.DebugSession,
         executable: vscode.DebugAdapterExecutable | undefined
     ): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
-        const workspaceFolder = session.workspaceFolder?.uri.fsPath || process.cwd();
-        const pythonPath = this.context.extensionPath;
-        const tempDir = path.join(workspaceFolder, 'temp');
-
-        const debugSession = new GDBDebugSession({ pythonPath, tempDir });
+        const debugSession = new GDBDebugSession({});
         return new vscode.DebugAdapterInlineImplementation(debugSession);
     }
 
