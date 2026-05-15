@@ -81,6 +81,8 @@ function activate(context) {
         const configurations = config.get('configurations') ?? [];
         const borders = configurations[0]?.border_breakpoints ?? [];
         for (const b of borders) {
+            if (b.function)
+                continue; // function-name borders are set directly in GDB, not via VSCode breakpoints
             const border = new breakpointGroups_1.Border(variablesSubstitution(b.filepath), b.line);
             const bp = new vscode.SourceBreakpoint(new vscode.Location(vscode.Uri.file(border.filepath), new vscode.Position(border.line - 1, 0)), true);
             vscode.debug.addBreakpoints([bp]);

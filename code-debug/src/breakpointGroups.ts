@@ -32,11 +32,13 @@ export interface IBreakpointGroupsSession {
 }
 
 export class Border {
-	filepath: string;
-	line: number;
-	constructor(filepath: string, line: number) {
+	filepath?: string;
+	line?: number;
+	func?: string;
+	constructor(filepath?: string, line?: number, func?: string) {
 		this.filepath = filepath;
 		this.line = line;
+		this.func = func;
 	}
 }
 

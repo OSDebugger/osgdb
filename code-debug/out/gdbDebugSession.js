@@ -73,6 +73,7 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
         this.createdVarObjects = [];
         // OS debug state
         this.osDebugReady = false;
+        this.functionBorderNames = [];
         this.osState = new OSStateMachine_1.OSState(OSStateMachine_1.OSStateMachine.initial);
         this.recentStopThreadId = 1;
         this.kernelMemoryRanges = [];
@@ -190,6 +191,10 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
                     for (const loc of found) {
                         this.breakpointGroups.updateBorder(new breakpointGroups_1.Border(loc.filepath, loc.line));
                     }
+                }
+                else if ('function' in b) {
+                    this.breakpointGroups.updateBorder(new breakpointGroups_1.Border(undefined, undefined, b.function));
+                    this.functionBorderNames.push(b.function);
                 }
                 else {
                     this.breakpointGroups.updateBorder(new breakpointGroups_1.Border(b.filepath, b.line));
@@ -790,6 +795,9 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
             if (attachConfig) {
                 this.osDebugReady = true;
                 this.inferiorStarted = true;
+                for (const funcName of this.functionBorderNames) {
+                    this.miDebugger.addBreakPoint({ raw: funcName, condition: '' });
+                }
             }
             this.sendEvent(new debugadapter_1.InitializedEvent());
         });
@@ -983,11 +991,12 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
                     console.warn('[ardb] check_if_kernel_to_user_border_yet: empty stack');
                     return;
                 }
-                const filepath = v[0].file;
-                const lineNumber = v[0].line;
+                const filepath = v[0].file ?? '';
+                const lineNumber = v[0].line ?? -1;
+                const funcName = v[0].function;
                 if (borders) {
                     for (const border of borders) {
-                        if (filepath === border.filepath && lineNumber === border.line) {
+                        if (this.borderMatches(border, filepath, lineNumber, funcName)) {
                             this.osStateTransition(new OSStateMachine_1.OSEvent(OSStateMachine_1.OSEvents.AT_KERNEL_TO_USER_BORDER));
                             break;
                         }
@@ -1014,9 +1023,10 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
                         }
                         const filepath = v[0].file ?? '';
                         const lineNumber = v[0].line ?? -1;
+                        const funcName = v[0].function;
                         if (borders) {
                             for (const border of borders) {
-                                if (filepath === border.filepath && lineNumber === border.line) {
+                                if (this.borderMatches(border, filepath, lineNumber, funcName)) {
                                     this.pendingBreakpointNode = undefined;
                                     this.osStateTransition(new OSStateMachine_1.OSEvent(OSStateMachine_1.OSEvents.AT_USER_TO_KERNEL_BORDER));
                                     return;
@@ -1077,8 +1087,9 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
                     this.sendUserStoppedEvent();
                     return;
                 }
-                const filepath = v[0].file;
-                const lineNumber = v[0].line;
+                const filepath = v[0].file ?? '';
+                const lineNumber = v[0].line ?? -1;
+                const funcName = v[0].function;
                 const currentGroup = this.breakpointGroups?.getCurrentBreakpointGroup();
                 if (!currentGroup) {
                     this.sendUserStoppedEvent();
@@ -1102,7 +1113,7 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
                 }
                 if (currentGroup.borders) {
                     for (const border of currentGroup.borders) {
-                        if (filepath === border.filepath && lineNumber === border.line) {
+                        if (this.borderMatches(border, filepath, lineNumber, funcName)) {
                             this.pendingBreakpointNode = undefined;
                             this.osStateTransition(new OSStateMachine_1.OSEvent(OSStateMachine_1.OSEvents.AT_KERNEL_TO_USER_BORDER));
                             return;
@@ -1116,6 +1127,12 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
     // -----------------------------------------------------------------------
     // Event helpers
     // -----------------------------------------------------------------------
+    borderMatches(border, filepath, lineNumber, funcName) {
+        if (border.func !== undefined) {
+            return funcName !== undefined && funcName === border.func;
+        }
+        return filepath === border.filepath && lineNumber === border.line;
+    }
     getThreadId(node) {
         const tid = node.record('thread-id');
         return tid ? parseInt(tid) : 1;

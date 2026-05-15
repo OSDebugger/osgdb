@@ -7,9 +7,10 @@ exports.BreakpointGroups = exports.HookBreakpoints = exports.HookBreakpoint = ex
 exports.toFunctionString = toFunctionString;
 exports.toHookBreakpoint = toHookBreakpoint;
 class Border {
-    constructor(filepath, line) {
+    constructor(filepath, line, func) {
         this.filepath = filepath;
         this.line = line;
+        this.func = func;
     }
 }
 exports.Border = Border;
