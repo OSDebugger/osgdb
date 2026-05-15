@@ -1,4 +1,5 @@
 import * as path from 'path';
+import { scanMarker } from './markerScanner';
 import {
     DebugSession,
     InitializedEvent,
@@ -58,8 +59,8 @@ export interface AttachRequestArguments extends DebugProtocol.AttachRequestArgum
     second_breakpoint_group?: string;
     kernel_memory_ranges?: string[][];
     user_memory_ranges?: string[][];
-    border_breakpoints?: Array<{ filepath: string; line: number }>;
-    hook_breakpoints?: any[];
+    border_breakpoints?: Array<{ filepath: string; line: number } | { marker: string }>;
+    hook_breakpoints?: Array<{ breakpoint: { file: string; line: number }; behavior: any } | { marker: string; behavior: any }>;
     filePathToBreakpointGroupNames?: { functionArguments: string; functionBody: string; isAsync: boolean };
     breakpointGroupNameToDebugFilePaths?: { functionArguments: string; functionBody: string; isAsync: boolean };
 }
@@ -258,7 +259,17 @@ export class GDBDebugSession extends DebugSession {
         // Register initial borders from launch.json
         if (config.border_breakpoints) {
             for (const b of config.border_breakpoints) {
-                this.breakpointGroups.updateBorder(new Border(b.filepath, b.line));
+                if ('marker' in b) {
+                    const found = scanMarker(this.cwd, b.marker);
+                    if (found.length === 0) {
+                        this.sendEvent(new OutputEvent(`[ardb] Warning: marker "${b.marker}" not found in ${this.cwd}\n`, 'stderr'));
+                    }
+                    for (const loc of found) {
+                        this.breakpointGroups.updateBorder(new Border(loc.filepath, loc.line));
+                    }
+                } else {
+                    this.breakpointGroups.updateBorder(new Border(b.filepath, b.line));
+                }
             }
         }
 
@@ -267,17 +278,32 @@ export class GDBDebugSession extends DebugSession {
         // uses ObjectAsFunction { body, args[] } — convert here.
         if (config.hook_breakpoints) {
             for (const h of config.hook_breakpoints) {
-                const normalized: HookBreakpointJSONFriendly = {
-                    breakpoint: h.breakpoint,
-                    behavior: {
-                        body: h.behavior?.functionBody ?? h.behavior?.body ?? '',
-                        args: h.behavior?.functionArguments !== undefined
-                            ? [h.behavior.functionArguments]
-                            : (h.behavior?.args ?? []),
-                        isAsync: h.behavior?.isAsync ?? false,
-                    },
+                const behavior = {
+                    body: h.behavior?.functionBody ?? h.behavior?.body ?? '',
+                    args: h.behavior?.functionArguments !== undefined
+                        ? [h.behavior.functionArguments]
+                        : (h.behavior?.args ?? []),
+                    isAsync: h.behavior?.isAsync ?? false,
                 };
-                this.breakpointGroups.updateHookBreakpoint(normalized);
+                if ('marker' in h) {
+                    const found = scanMarker(this.cwd, h.marker);
+                    if (found.length === 0) {
+                        this.sendEvent(new OutputEvent(`[ardb] Warning: marker "${h.marker}" not found in ${this.cwd}\n`, 'stderr'));
+                    }
+                    for (const loc of found) {
+                        const normalized: HookBreakpointJSONFriendly = {
+                            breakpoint: { file: loc.filepath, line: loc.line, condition: '' },
+                            behavior,
+                        };
+                        this.breakpointGroups.updateHookBreakpoint(normalized);
+                    }
+                } else {
+                    const normalized: HookBreakpointJSONFriendly = {
+                        breakpoint: { condition: '', ...h.breakpoint },
+                        behavior,
+                    };
+                    this.breakpointGroups.updateHookBreakpoint(normalized);
+                }
             }
         }
 

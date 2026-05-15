@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GDBDebugSession = void 0;
 const path = __importStar(require("path"));
+const markerScanner_1 = require("./markerScanner");
 const debugadapter_1 = require("@vscode/debugadapter");
 const mi2_1 = require("./backend/mi2");
 const mi_parse_1 = require("./backend/mi_parse");
@@ -181,7 +182,18 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
         // Register initial borders from launch.json
         if (config.border_breakpoints) {
             for (const b of config.border_breakpoints) {
-                this.breakpointGroups.updateBorder(new breakpointGroups_1.Border(b.filepath, b.line));
+                if ('marker' in b) {
+                    const found = (0, markerScanner_1.scanMarker)(this.cwd, b.marker);
+                    if (found.length === 0) {
+                        this.sendEvent(new debugadapter_1.OutputEvent(`[ardb] Warning: marker "${b.marker}" not found in ${this.cwd}\n`, 'stderr'));
+                    }
+                    for (const loc of found) {
+                        this.breakpointGroups.updateBorder(new breakpointGroups_1.Border(loc.filepath, loc.line));
+                    }
+                }
+                else {
+                    this.breakpointGroups.updateBorder(new breakpointGroups_1.Border(b.filepath, b.line));
+                }
             }
         }
         // Register initial hook breakpoints from launch.json
@@ -189,17 +201,33 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
         // uses ObjectAsFunction { body, args[] } — convert here.
         if (config.hook_breakpoints) {
             for (const h of config.hook_breakpoints) {
-                const normalized = {
-                    breakpoint: h.breakpoint,
-                    behavior: {
-                        body: h.behavior?.functionBody ?? h.behavior?.body ?? '',
-                        args: h.behavior?.functionArguments !== undefined
-                            ? [h.behavior.functionArguments]
-                            : (h.behavior?.args ?? []),
-                        isAsync: h.behavior?.isAsync ?? false,
-                    },
+                const behavior = {
+                    body: h.behavior?.functionBody ?? h.behavior?.body ?? '',
+                    args: h.behavior?.functionArguments !== undefined
+                        ? [h.behavior.functionArguments]
+                        : (h.behavior?.args ?? []),
+                    isAsync: h.behavior?.isAsync ?? false,
                 };
-                this.breakpointGroups.updateHookBreakpoint(normalized);
+                if ('marker' in h) {
+                    const found = (0, markerScanner_1.scanMarker)(this.cwd, h.marker);
+                    if (found.length === 0) {
+                        this.sendEvent(new debugadapter_1.OutputEvent(`[ardb] Warning: marker "${h.marker}" not found in ${this.cwd}\n`, 'stderr'));
+                    }
+                    for (const loc of found) {
+                        const normalized = {
+                            breakpoint: { file: loc.filepath, line: loc.line, condition: '' },
+                            behavior,
+                        };
+                        this.breakpointGroups.updateHookBreakpoint(normalized);
+                    }
+                }
+                else {
+                    const normalized = {
+                        breakpoint: { condition: '', ...h.breakpoint },
+                        behavior,
+                    };
+                    this.breakpointGroups.updateHookBreakpoint(normalized);
+                }
             }
         }
         if (config.remote) {
