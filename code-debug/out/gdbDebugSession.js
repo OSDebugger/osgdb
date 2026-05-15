@@ -575,39 +575,12 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
         }
         try {
             await this.miDebugger.sendCommand(`thread-select ${threadId}`);
-            const record = await this.miDebugger.sendCliCommand('ardb-get-snapshot');
-            const output = this.getConsoleOutput(record);
-            const snapshot = this.parseSnapshot(output);
-            if (snapshot && snapshot.path.length > 0) {
-                const reversedPath = [...snapshot.path].reverse();
-                const stackFrames = [];
-                for (let i = 0; i < reversedPath.length; i++) {
-                    const node = reversedPath[i];
-                    const frameId = threadId * 10000 + i;
-                    const name = node.func || '<unknown>';
-                    const sf = new debugadapter_1.StackFrame(frameId, name, (node.fullname || node.file) ? new debugadapter_1.Source(node.file || '', node.fullname || node.file || '') : undefined, node.line || 0, 0);
-                    if (node.addr) {
-                        sf.instructionPointerReference = node.addr;
-                    }
-                    stackFrames.push(sf);
-                }
-                response.body = { stackFrames, totalFrames: stackFrames.length };
-                this.sendResponse(response);
-            }
-            else {
-                await this.fallbackPhysicalStackTrace(response, threadId);
-            }
+            await this.fallbackPhysicalStackTrace(response, threadId);
         }
         catch (err) {
-            console.log(`[Adapter] snapshot stackTrace failed, falling back: ${err.message}`);
-            try {
-                await this.fallbackPhysicalStackTrace(response, threadId);
-            }
-            catch (err2) {
-                console.log(`[Adapter] stackTrace fallback also failed: ${err2.message}`);
-                response.body = { stackFrames: [], totalFrames: 0 };
-                this.sendResponse(response);
-            }
+            console.log(`[Adapter] stackTrace failed: ${err.message}`);
+            response.body = { stackFrames: [], totalFrames: 0 };
+            this.sendResponse(response);
         }
     }
     // -----------------------------------------------------------------------
@@ -975,7 +948,7 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
                     console.warn('[ardb] check_if_kernel_yet: no register data');
                     return;
                 }
-                const pc = (0, addrSpace_1.parseAddr)(regs[0].value ?? '');
+                const pc = (0, addrSpace_1.parseAddr)(regs[0]?.value ?? '');
                 if (pc !== undefined && (0, addrSpace_1.isKernelAddr)(pc, this.kernelMemoryRanges)) {
                     this.showInfo('arrived at kernel. current addr: ' + pc.toString(16));
                     this.osStateTransition(new OSStateMachine_1.OSEvent(OSStateMachine_1.OSEvents.AT_KERNEL));
@@ -992,7 +965,7 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
                     console.warn('[ardb] check_if_user_yet: no register data');
                     return;
                 }
-                const pc = (0, addrSpace_1.parseAddr)(regs[0].value ?? '');
+                const pc = (0, addrSpace_1.parseAddr)(regs[0]?.value ?? '');
                 if (pc !== undefined && (0, addrSpace_1.isUserAddr)(pc, this.userMemoryRanges)) {
                     this.showInfo('arrived at user. current addr: ' + pc.toString(16));
                     this.osStateTransition(new OSStateMachine_1.OSEvent(OSStateMachine_1.OSEvents.AT_USER));
@@ -1025,23 +998,38 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
         else if (action.type === OSStateMachine_1.DebuggerActions.check_if_user_to_kernel_border_yet) {
             this.showInfo('doing action: check_if_user_to_kernel_border_yet');
             const borders = this.breakpointGroups?.getCurrentBreakpointGroup()?.borders;
-            this.miDebugger.getStack(0, 1, this.recentStopThreadId).then(v => {
-                if (!v || v.length === 0 || !v[0]) {
+            this.miDebugger.getSomeRegisterValues([this.programCounterId]).then(regs => {
+                const reg = regs?.[0];
+                if (!reg) {
                     this.sendUserStoppedEvent();
                     return;
                 }
-                const filepath = v[0].file;
-                const lineNumber = v[0].line;
-                if (borders) {
-                    for (const border of borders) {
-                        if (filepath === border.filepath && lineNumber === border.line) {
-                            this.pendingBreakpointNode = undefined;
-                            this.osStateTransition(new OSStateMachine_1.OSEvent(OSStateMachine_1.OSEvents.AT_USER_TO_KERNEL_BORDER));
+                const pc = (0, addrSpace_1.parseAddr)(reg.value ?? '');
+                if (pc !== undefined && (0, addrSpace_1.isKernelAddr)(pc, this.kernelMemoryRanges)) {
+                    // PC is in kernel — check if we're at a border breakpoint or just stop
+                    this.miDebugger.getStack(0, 1, this.recentStopThreadId).then(v => {
+                        if (!v || v.length === 0 || !v[0]) {
+                            this.sendUserStoppedEvent();
                             return;
                         }
-                    }
+                        const filepath = v[0].file ?? '';
+                        const lineNumber = v[0].line ?? -1;
+                        if (borders) {
+                            for (const border of borders) {
+                                if (filepath === border.filepath && lineNumber === border.line) {
+                                    this.pendingBreakpointNode = undefined;
+                                    this.osStateTransition(new OSStateMachine_1.OSEvent(OSStateMachine_1.OSEvents.AT_USER_TO_KERNEL_BORDER));
+                                    return;
+                                }
+                            }
+                        }
+                        this.sendUserStoppedEvent();
+                    });
                 }
-                this.sendUserStoppedEvent();
+                else {
+                    // Still in user space, keep single stepping
+                    this.miDebugger.stepInstruction();
+                }
             });
         }
         else if (action.type === OSStateMachine_1.DebuggerActions.start_consecutive_single_steps) {
@@ -1199,25 +1187,6 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
             return '';
         // The consoleOutput is stored in node via our patched sendCommand
         return node._consoleOutput || '';
-    }
-    parseSnapshot(output) {
-        return this.parseJsonFromOutput(output);
-    }
-    parseJsonFromOutput(output) {
-        if (!output)
-            return undefined;
-        const jsonStart = output.indexOf('{');
-        const jsonEnd = output.lastIndexOf('}');
-        if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
-            return undefined;
-        }
-        try {
-            const jsonStr = output.substring(jsonStart, jsonEnd + 1);
-            return JSON.parse(jsonStr);
-        }
-        catch {
-            return undefined;
-        }
     }
     async fallbackPhysicalStackTrace(response, threadId) {
         const stack = await this.miDebugger.getStack(0, 200, threadId);
