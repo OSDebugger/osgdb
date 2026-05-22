@@ -194,11 +194,16 @@ export class BreakpointGroups {
 			(e) => this.session.miDebugger.clearBreakPoints(e.source.path)
 		);
 
-		// Also delete old group's function-name border breakpoints from GDB
-		const oldFuncBorders = (this.groups[oldIndex].borders ?? []).filter(b => b.func !== undefined && b.gdbNumber !== undefined);
-		const clearOldFuncBorderPromises = oldFuncBorders.map(b =>
-			this.session.miDebugger.sendCommand(`break-delete ${b.gdbNumber}`).catch(() => { })
-		);
+		// Also delete old group's function-name border breakpoints from GDB.
+		// Use the stored GDB number if available; fall back to deleting by name
+		// to handle the race where gdbNumber hasn't been set yet.
+		const oldFuncBorders = (this.groups[oldIndex].borders ?? []).filter(b => b.func !== undefined);
+		const clearOldFuncBorderPromises = oldFuncBorders.map(b => {
+			const cmd = b.gdbNumber !== undefined
+				? `break-delete ${b.gdbNumber}`
+				: `break-delete ${b.func}`;
+			return this.session.miDebugger.sendCommand(cmd).catch(() => { });
+		});
 		oldFuncBorders.forEach(b => { b.gdbNumber = undefined; });
 
 		// 2. Unload old symbol files, load new symbol files — must complete before
