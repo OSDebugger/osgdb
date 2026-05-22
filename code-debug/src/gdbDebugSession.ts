@@ -59,7 +59,11 @@ export interface AttachRequestArguments extends DebugProtocol.AttachRequestArgum
     second_breakpoint_group?: string;
     kernel_memory_ranges?: string[][];
     user_memory_ranges?: string[][];
-    border_breakpoints?: Array<{ filepath: string; line: number } | { marker: string } | { function: string }>;
+    border_breakpoints?: Array<
+        | { filepath: string; line: number; direction?: 'kernel_to_user' | 'user_to_kernel' }
+        | { marker: string; direction?: 'kernel_to_user' | 'user_to_kernel' }
+        | { function: string; direction?: 'kernel_to_user' | 'user_to_kernel' }
+    >;
     hook_breakpoints?: Array<{ breakpoint: { file: string; line: number }; behavior: any } | { marker: string; behavior: any }>;
     filePathToBreakpointGroupNames?: { functionArguments: string; functionBody: string; isAsync: boolean };
     breakpointGroupNameToDebugFilePaths?: { functionArguments: string; functionBody: string; isAsync: boolean };
@@ -260,19 +264,20 @@ export class GDBDebugSession extends DebugSession {
         // Register initial borders from launch.json
         if (config.border_breakpoints) {
             for (const b of config.border_breakpoints) {
+                const direction = b.direction ?? 'kernel_to_user';
                 if ('marker' in b) {
                     const found = scanMarker(this.cwd, b.marker);
                     if (found.length === 0) {
                         this.sendEvent(new OutputEvent(`[ardb] Warning: marker "${b.marker}" not found in ${this.cwd}\n`, 'stderr'));
                     }
                     for (const loc of found) {
-                        this.breakpointGroups.updateBorder(new Border(loc.filepath, loc.line));
+                        this.breakpointGroups.updateBorder(new Border(loc.filepath, loc.line, undefined, direction));
                     }
                 } else if ('function' in b) {
-                    this.breakpointGroups.updateBorder(new Border(undefined, undefined, b.function));
+                    this.breakpointGroups.updateBorder(new Border(undefined, undefined, b.function, direction));
                     this.functionBorderNames.push(b.function);
                 } else {
-                    this.breakpointGroups.updateBorder(new Border(b.filepath, b.line));
+                    this.breakpointGroups.updateBorder(new Border(b.filepath, b.line, undefined, direction));
                 }
             }
         }
@@ -972,7 +977,14 @@ export class GDBDebugSession extends DebugSession {
                 this.osDebugReady = true;
                 this.inferiorStarted = true;
                 for (const funcName of this.functionBorderNames) {
-                    this.miDebugger!.addBreakPoint({ raw: funcName, condition: '' });
+                    this.miDebugger!.addBreakPoint({ raw: funcName, condition: '' }).then(([ok, brk]) => {
+                        if (!ok || !brk?.id) return;
+                        // Store the GDB number back into the Border object so
+                        // updateCurrentBreakpointGroup can delete it on group switch.
+                        const group = this.breakpointGroups?.getCurrentBreakpointGroup();
+                        const border = group?.borders?.find(b => b.func === funcName);
+                        if (border) border.gdbNumber = brk.id;
+                    });
                 }
             }
             this.sendEvent(new InitializedEvent());
@@ -1190,7 +1202,7 @@ export class GDBDebugSession extends DebugSession {
                 const funcName = v[0].function;
                 if (borders) {
                     for (const border of borders) {
-                        if (this.borderMatches(border, filepath, lineNumber, funcName)) {
+                        if (this.borderMatches(border, filepath, lineNumber, funcName, 'kernel_to_user')) {
                             this.osStateTransition(new OSEvent(OSEvents.AT_KERNEL_TO_USER_BORDER));
                             break;
                         }
@@ -1220,7 +1232,7 @@ export class GDBDebugSession extends DebugSession {
                         const funcName = v[0].function;
                         if (borders) {
                             for (const border of borders) {
-                                if (this.borderMatches(border, filepath, lineNumber, funcName)) {
+                                if (this.borderMatches(border, filepath, lineNumber, funcName, 'user_to_kernel')) {
                                     this.pendingBreakpointNode = undefined;
                                     this.osStateTransition(new OSEvent(OSEvents.AT_USER_TO_KERNEL_BORDER));
                                     return;
@@ -1230,8 +1242,8 @@ export class GDBDebugSession extends DebugSession {
                         this.sendUserStoppedEvent();
                     });
                 } else {
-                    // Still in user space, keep single stepping
-                    this.miDebugger!.stepInstruction();
+                    // PC is still in user space — a normal user breakpoint, stop for the user
+                    this.sendUserStoppedEvent();
                 }
             });
         }
@@ -1303,7 +1315,7 @@ export class GDBDebugSession extends DebugSession {
 
                 if (currentGroup.borders) {
                     for (const border of currentGroup.borders) {
-                        if (this.borderMatches(border, filepath, lineNumber, funcName)) {
+                        if (this.borderMatches(border, filepath, lineNumber, funcName, 'kernel_to_user')) {
                             this.pendingBreakpointNode = undefined;
                             this.osStateTransition(new OSEvent(OSEvents.AT_KERNEL_TO_USER_BORDER));
                             return;
@@ -1320,7 +1332,8 @@ export class GDBDebugSession extends DebugSession {
     // Event helpers
     // -----------------------------------------------------------------------
 
-    private borderMatches(border: Border, filepath: string, lineNumber: number, funcName?: string): boolean {
+    private borderMatches(border: Border, filepath: string, lineNumber: number, funcName?: string, direction?: 'kernel_to_user' | 'user_to_kernel'): boolean {
+        if (direction !== undefined && border.direction !== direction) return false;
         if (border.func !== undefined) {
             return funcName !== undefined && funcName === border.func;
         }

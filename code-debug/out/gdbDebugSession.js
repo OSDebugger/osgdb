@@ -183,21 +183,22 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
         // Register initial borders from launch.json
         if (config.border_breakpoints) {
             for (const b of config.border_breakpoints) {
+                const direction = b.direction ?? 'kernel_to_user';
                 if ('marker' in b) {
                     const found = (0, markerScanner_1.scanMarker)(this.cwd, b.marker);
                     if (found.length === 0) {
                         this.sendEvent(new debugadapter_1.OutputEvent(`[ardb] Warning: marker "${b.marker}" not found in ${this.cwd}\n`, 'stderr'));
                     }
                     for (const loc of found) {
-                        this.breakpointGroups.updateBorder(new breakpointGroups_1.Border(loc.filepath, loc.line));
+                        this.breakpointGroups.updateBorder(new breakpointGroups_1.Border(loc.filepath, loc.line, undefined, direction));
                     }
                 }
                 else if ('function' in b) {
-                    this.breakpointGroups.updateBorder(new breakpointGroups_1.Border(undefined, undefined, b.function));
+                    this.breakpointGroups.updateBorder(new breakpointGroups_1.Border(undefined, undefined, b.function, direction));
                     this.functionBorderNames.push(b.function);
                 }
                 else {
-                    this.breakpointGroups.updateBorder(new breakpointGroups_1.Border(b.filepath, b.line));
+                    this.breakpointGroups.updateBorder(new breakpointGroups_1.Border(b.filepath, b.line, undefined, direction));
                 }
             }
         }
@@ -796,7 +797,16 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
                 this.osDebugReady = true;
                 this.inferiorStarted = true;
                 for (const funcName of this.functionBorderNames) {
-                    this.miDebugger.addBreakPoint({ raw: funcName, condition: '' });
+                    this.miDebugger.addBreakPoint({ raw: funcName, condition: '' }).then(([ok, brk]) => {
+                        if (!ok || !brk?.id)
+                            return;
+                        // Store the GDB number back into the Border object so
+                        // updateCurrentBreakpointGroup can delete it on group switch.
+                        const group = this.breakpointGroups?.getCurrentBreakpointGroup();
+                        const border = group?.borders?.find(b => b.func === funcName);
+                        if (border)
+                            border.gdbNumber = brk.id;
+                    });
                 }
             }
             this.sendEvent(new debugadapter_1.InitializedEvent());
@@ -996,7 +1006,7 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
                 const funcName = v[0].function;
                 if (borders) {
                     for (const border of borders) {
-                        if (this.borderMatches(border, filepath, lineNumber, funcName)) {
+                        if (this.borderMatches(border, filepath, lineNumber, funcName, 'kernel_to_user')) {
                             this.osStateTransition(new OSStateMachine_1.OSEvent(OSStateMachine_1.OSEvents.AT_KERNEL_TO_USER_BORDER));
                             break;
                         }
@@ -1026,7 +1036,7 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
                         const funcName = v[0].function;
                         if (borders) {
                             for (const border of borders) {
-                                if (this.borderMatches(border, filepath, lineNumber, funcName)) {
+                                if (this.borderMatches(border, filepath, lineNumber, funcName, 'user_to_kernel')) {
                                     this.pendingBreakpointNode = undefined;
                                     this.osStateTransition(new OSStateMachine_1.OSEvent(OSStateMachine_1.OSEvents.AT_USER_TO_KERNEL_BORDER));
                                     return;
@@ -1037,8 +1047,8 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
                     });
                 }
                 else {
-                    // Still in user space, keep single stepping
-                    this.miDebugger.stepInstruction();
+                    // PC is still in user space — a normal user breakpoint, stop for the user
+                    this.sendUserStoppedEvent();
                 }
             });
         }
@@ -1113,7 +1123,7 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
                 }
                 if (currentGroup.borders) {
                     for (const border of currentGroup.borders) {
-                        if (this.borderMatches(border, filepath, lineNumber, funcName)) {
+                        if (this.borderMatches(border, filepath, lineNumber, funcName, 'kernel_to_user')) {
                             this.pendingBreakpointNode = undefined;
                             this.osStateTransition(new OSStateMachine_1.OSEvent(OSStateMachine_1.OSEvents.AT_KERNEL_TO_USER_BORDER));
                             return;
@@ -1127,7 +1137,9 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
     // -----------------------------------------------------------------------
     // Event helpers
     // -----------------------------------------------------------------------
-    borderMatches(border, filepath, lineNumber, funcName) {
+    borderMatches(border, filepath, lineNumber, funcName, direction) {
+        if (direction !== undefined && border.direction !== direction)
+            return false;
         if (border.func !== undefined) {
             return funcName !== undefined && funcName === border.func;
         }

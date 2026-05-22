@@ -71,6 +71,9 @@ class MockMI2 {
         this.calls.push({ type: 'removeSymbolFile', path: filepath });
         return Promise.resolve();
     }
+    sendCommand(_command) {
+        return Promise.resolve();
+    }
 }
 // ---------------------------------------------------------------------------
 // Test harness — reproduces the doAction + osStateTransition logic from

@@ -7,10 +7,11 @@ exports.BreakpointGroups = exports.HookBreakpoints = exports.HookBreakpoint = ex
 exports.toFunctionString = toFunctionString;
 exports.toHookBreakpoint = toHookBreakpoint;
 class Border {
-    constructor(filepath, line, func) {
+    constructor(filepath, line, func, direction = 'kernel_to_user') {
         this.filepath = filepath;
         this.line = line;
         this.func = func;
+        this.direction = direction;
     }
 }
 exports.Border = Border;
@@ -137,13 +138,17 @@ class BreakpointGroups {
         this.session.showInformationMessage("breakpoint group changed to " + updateTo);
         // 1. Clear old group's breakpoints from GDB (parallel, order doesn't matter)
         const clearOldPromises = this.groups[oldIndex].setBreakpointsArguments.map((e) => this.session.miDebugger.clearBreakPoints(e.source.path));
+        // Also delete old group's function-name border breakpoints from GDB
+        const oldFuncBorders = (this.groups[oldIndex].borders ?? []).filter(b => b.func !== undefined && b.gdbNumber !== undefined);
+        const clearOldFuncBorderPromises = oldFuncBorders.map(b => this.session.miDebugger.sendCommand(`break-delete ${b.gdbNumber}`).catch(() => { }));
+        oldFuncBorders.forEach(b => { b.gdbNumber = undefined; });
         // 2. Unload old symbol files, load new symbol files — must complete before
         //    re-inserting breakpoints so GDB can resolve source locations correctly.
         const oldSymbolFiles = eval(this.session.breakpointGroupNameToDebugFilePaths)(this.groups[oldIndex].name);
         const newSymbolFiles = eval(this.session.breakpointGroupNameToDebugFilePaths)(this.groups[newIndex].name);
         const toPath = (e) => typeof e === 'string' ? e : e.path;
         const toTextAddr = (e) => typeof e === 'string' ? undefined : e.textAddr;
-        Promise.all(clearOldPromises)
+        Promise.all([...clearOldPromises, ...clearOldFuncBorderPromises])
             .then(() => Promise.all(oldSymbolFiles.map(f => this.session.miDebugger.removeSymbolFile(toPath(f)).catch(err => { console.error('[ardb] removeSymbolFile failed:', err); }))))
             .then(() => Promise.all(newSymbolFiles.map(f => this.session.miDebugger.addSymbolFile(toPath(f), toTextAddr(f)).catch(err => { console.error('[ardb] addSymbolFile failed:', err); }))))
             .then(() => {
@@ -163,7 +168,15 @@ class BreakpointGroups {
                     return Promise.all(all);
                 }, (_msg) => []);
             });
-            return Promise.all(breakpointPromises);
+            // Also re-insert new group's function-name border breakpoints into GDB
+            const newFuncBorderPromises = (this.groups[newIndex].borders ?? [])
+                .filter(b => b.func !== undefined)
+                .map(b => this.session.miDebugger.addBreakPoint({ raw: b.func, condition: '' })
+                .then(([ok, brk]) => { if (ok && brk?.id)
+                b.gdbNumber = brk.id; })
+                .catch(() => { }));
+            return Promise.all([Promise.all(breakpointPromises), Promise.all(newFuncBorderPromises)])
+                .then(([bpResults]) => bpResults);
         })
             .then((nestedResults) => {
             // 4. Notify session to send BreakpointEvent('changed') for each restored BP
