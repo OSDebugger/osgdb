@@ -32,6 +32,7 @@ import {
     OSState,
     OSEvent,
     OSEvents,
+    OSStates,
     DebuggerActions,
     Action,
     stateTransition,
@@ -1221,7 +1222,7 @@ export class GDBDebugSession extends DebugSession {
                 }
                 const pc = parseAddr(reg.value ?? '');
                 if (pc !== undefined && isKernelAddr(pc, this.kernelMemoryRanges)) {
-                    // PC is in kernel — check if we're at a border breakpoint or just stop
+                    // PC is in kernel
                     this.miDebugger!.getStack(0, 1, this.recentStopThreadId).then(v => {
                         if (!v || v.length === 0 || !v[0]) {
                             this.sendUserStoppedEvent();
@@ -1230,20 +1231,55 @@ export class GDBDebugSession extends DebugSession {
                         const filepath = v[0].file ?? '';
                         const lineNumber = v[0].line ?? -1;
                         const funcName = v[0].function;
+
+                        // Check if this is a user_to_kernel border
                         if (borders) {
                             for (const border of borders) {
                                 if (this.borderMatches(border, filepath, lineNumber, funcName, 'user_to_kernel')) {
+                                    // Hit user_to_kernel border, and PC is already in kernel
+                                    // This means the border is set at a kernel function (e.g., StarryOS handle_syscall)
+                                    // Switch directly to kernel state without single-stepping
+                                    this.showInfo('[INFO] user_to_kernel border hit, PC already in kernel — switching to kernel state directly');
+                                    this.pendingBreakpointNode = undefined;
+                                    this.osStateTransition(new OSEvent(OSEvents.AT_KERNEL));
+                                    return;
+                                }
+                            }
+                        }
+
+                        // Not a border — force state back to kernel
+                        this.showInfo('[WARN] PC in kernel but state is user (not a border) — forcing back to kernel state');
+                        this.osState.status = OSStates.kernel;
+                        this.osStateTransition(new OSEvent(OSEvents.STOPPED));
+                    });
+                } else {
+                    // PC is still in user space
+                    // Check if we hit a user_to_kernel border (rCore case: border at user-space ecall)
+                    this.miDebugger!.getStack(0, 1, this.recentStopThreadId).then(v => {
+                        if (!v || v.length === 0 || !v[0]) {
+                            this.sendUserStoppedEvent();
+                            return;
+                        }
+                        const filepath = v[0].file ?? '';
+                        const lineNumber = v[0].line ?? -1;
+                        const funcName = v[0].function;
+
+                        if (borders) {
+                            for (const border of borders) {
+                                if (this.borderMatches(border, filepath, lineNumber, funcName, 'user_to_kernel')) {
+                                    // Hit user_to_kernel border in user space (rCore case)
+                                    // Enter single-step mode to cross the boundary
+                                    this.showInfo('[INFO] user_to_kernel border hit in user space — entering single-step mode');
                                     this.pendingBreakpointNode = undefined;
                                     this.osStateTransition(new OSEvent(OSEvents.AT_USER_TO_KERNEL_BORDER));
                                     return;
                                 }
                             }
                         }
+
+                        // Normal user breakpoint — stop for the user
                         this.sendUserStoppedEvent();
                     });
-                } else {
-                    // PC is still in user space — a normal user breakpoint, stop for the user
-                    this.sendUserStoppedEvent();
                 }
             });
         }

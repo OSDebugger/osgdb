@@ -265,6 +265,16 @@ class BreakpointGroups {
         }
     }
     updateBorder(border) {
+        // Function-based borders (e.g., { function: "enter_user" }) have no filepath.
+        // They are global and should be added to all existing groups (or at least the kernel group).
+        if (!border.filepath) {
+            // Add to all existing groups
+            for (const group of this.groups) {
+                group.borders = group.borders ?? [];
+                group.borders.push(border);
+            }
+            return;
+        }
         const groupNamesOfBorder = eval(this.session.filePathToBreakpointGroupNames)(border.filepath);
         for (const groupNameOfBorder of groupNamesOfBorder) {
             let groupExists = false;
@@ -282,6 +292,13 @@ class BreakpointGroups {
     }
     // breakpoints are still there but they are no longer borders
     disableBorder(border) {
+        // Function-based borders have no filepath — remove from all groups
+        if (!border.filepath) {
+            for (const group of this.groups) {
+                group.borders = [];
+            }
+            return;
+        }
         const groupNamesOfBorder = eval(this.session.filePathToBreakpointGroupNames)(border.filepath);
         for (const groupNameOfBorder of groupNamesOfBorder) {
             for (const group of this.groups) {
