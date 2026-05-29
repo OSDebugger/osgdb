@@ -1048,10 +1048,10 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
                                 }
                             }
                         }
-                        // Not a border — force state back to kernel
-                        this.showInfo('[WARN] PC in kernel but state is user (not a border) — forcing back to kernel state');
-                        this.osState.status = OSStateMachine_1.OSStates.kernel;
-                        this.osStateTransition(new OSStateMachine_1.OSEvent(OSStateMachine_1.OSEvents.STOPPED));
+                        // Not a border — PC is already in kernel, switch group normally
+                        this.showInfo('[INFO] PC in kernel but state is user — switching to kernel state');
+                        this.pendingBreakpointNode = undefined;
+                        this.osStateTransition(new OSStateMachine_1.OSEvent(OSStateMachine_1.OSEvents.AT_KERNEL));
                     });
                 }
                 else {

@@ -104,6 +104,14 @@ export const OSStateMachine: OSStateMachine = {
 					actions: [
 						{ type: DebuggerActions.start_consecutive_single_steps }
 					]
+				},
+				// StarryOS case: user_to_kernel border is in kernel space, so PC is already
+				// in kernel when the border is detected — switch groups without single-stepping.
+				[OSEvents.AT_KERNEL]: {
+					target: OSStates.kernel,
+					actions: [
+						{ type: DebuggerActions.high_level_switch_breakpoint_group_to_low_level }
+					]
 				}
 			}
 		},

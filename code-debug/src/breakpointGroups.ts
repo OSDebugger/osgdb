@@ -133,6 +133,9 @@ export class BreakpointGroups {
 	// Tracks symbol files already loaded into GDB via add-symbol-file.
 	// We never unload them so that breakpoints from all groups stay active simultaneously.
 	private loadedSymbolFiles: Set<string> = new Set();
+	// Stores user_to_kernel function-based borders so they can be injected into user groups
+	// that are created after the borders are registered (e.g. on first setBreakpoints call).
+	private pendingUserToKernelFuncBorders: Border[] = [];
 
 	constructor(currentBreakpointGroupName: string, session: IBreakpointGroupsSession, nextBreakpointGroup: string) {
 		this.session = session;
@@ -323,7 +326,9 @@ export class BreakpointGroups {
 			}
 		}
 		if (found === -1) {
-			this.groups.push(new BreakpointGroup(groupName, [], new HookBreakpoints([]), []));
+			// Inject any pending user_to_kernel function-based borders into the new group.
+			const initialBorders = this.pendingUserToKernelFuncBorders.map(b => b);
+			this.groups.push(new BreakpointGroup(groupName, [], new HookBreakpoints([]), initialBorders));
 			found = this.groups.length - 1;
 		}
 		let alreadyThere = -1;
@@ -340,12 +345,27 @@ export class BreakpointGroups {
 
 	public updateBorder(border: Border) {
 		// Function-based borders (e.g., { function: "enter_user" }) have no filepath.
-		// They are global and should be added to all existing groups (or at least the kernel group).
+		// Assign by direction so each border is only active in the group where it can fire:
+		//   kernel_to_user → kernel group (default first group)
+		//   user_to_kernel → all non-kernel groups (user groups)
+		// This prevents e.g. enter_user (kernel_to_user) from being re-inserted into GDB
+		// when switching to a user breakpoint group, which would cause a spurious stop.
 		if (!border.filepath) {
-			// Add to all existing groups
-			for (const group of this.groups) {
-				group.borders = group.borders ?? [];
-				group.borders.push(border);
+			if (border.direction === 'kernel_to_user') {
+				// Only the kernel group needs this border
+				const kernelGroup = this.groups[0];
+				if (kernelGroup) {
+					kernelGroup.borders = kernelGroup.borders ?? [];
+					kernelGroup.borders.push(border);
+				}
+			} else {
+				// user_to_kernel: add to all non-first groups (user groups).
+				// Also stash it so groups created later (on first setBreakpoints call) get it too.
+				this.pendingUserToKernelFuncBorders.push(border);
+				for (const group of this.groups.slice(1)) {
+					group.borders = group.borders ?? [];
+					group.borders.push(border);
+				}
 			}
 			return;
 		}

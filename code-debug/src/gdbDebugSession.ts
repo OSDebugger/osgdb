@@ -1247,10 +1247,10 @@ export class GDBDebugSession extends DebugSession {
                             }
                         }
 
-                        // Not a border — force state back to kernel
-                        this.showInfo('[WARN] PC in kernel but state is user (not a border) — forcing back to kernel state');
-                        this.osState.status = OSStates.kernel;
-                        this.osStateTransition(new OSEvent(OSEvents.STOPPED));
+                        // Not a border — PC is already in kernel, switch group normally
+                        this.showInfo('[INFO] PC in kernel but state is user — switching to kernel state');
+                        this.pendingBreakpointNode = undefined;
+                        this.osStateTransition(new OSEvent(OSEvents.AT_KERNEL));
                     });
                 } else {
                     // PC is still in user space
@@ -1332,6 +1332,7 @@ export class GDBDebugSession extends DebugSession {
                 const funcName = v[0].function;
                 const currentGroup = this.breakpointGroups?.getCurrentBreakpointGroup();
                 if (!currentGroup) { this.sendUserStoppedEvent(); return; }
+
 
                 for (const hook of currentGroup.hooks) {
                     if (filepath === hook.breakpoint.file && lineNumber === hook.breakpoint.line) {
