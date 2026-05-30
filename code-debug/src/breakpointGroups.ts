@@ -174,7 +174,8 @@ export class BreakpointGroups {
 			}
 		}
 		if (newIndex === -1) {
-			this.groups.push(new BreakpointGroup(updateTo, [], new HookBreakpoints([]), []));
+			const initialBorders = this.pendingUserToKernelFuncBorders.map(b => b);
+			this.groups.push(new BreakpointGroup(updateTo, [], new HookBreakpoints([]), initialBorders));
 			newIndex = this.groups.length - 1;
 		}
 		let oldIndex = -1;

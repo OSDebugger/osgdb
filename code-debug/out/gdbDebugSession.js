@@ -967,7 +967,6 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
                 }
                 const pc = (0, addrSpace_1.parseAddr)(regs[0]?.value ?? '');
                 if (pc !== undefined && (0, addrSpace_1.isKernelAddr)(pc, this.kernelMemoryRanges)) {
-                    this.showInfo('arrived at kernel. current addr: ' + pc.toString(16));
                     this.osStateTransition(new OSStateMachine_1.OSEvent(OSStateMachine_1.OSEvents.AT_KERNEL));
                 }
                 else {
@@ -976,7 +975,6 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
             });
         }
         else if (action.type === OSStateMachine_1.DebuggerActions.check_if_user_yet) {
-            this.showInfo('doing action: check_if_user_yet');
             this.miDebugger.getSomeRegisterValues([this.programCounterId]).then(regs => {
                 if (!regs || regs.length === 0 || !regs[0]) {
                     console.warn('[ardb] check_if_user_yet: no register data');
@@ -984,7 +982,6 @@ class GDBDebugSession extends debugadapter_1.DebugSession {
                 }
                 const pc = (0, addrSpace_1.parseAddr)(regs[0]?.value ?? '');
                 if (pc !== undefined && (0, addrSpace_1.isUserAddr)(pc, this.userMemoryRanges)) {
-                    this.showInfo('arrived at user. current addr: ' + pc.toString(16));
                     this.osStateTransition(new OSStateMachine_1.OSEvent(OSStateMachine_1.OSEvents.AT_USER));
                 }
                 else {

@@ -1162,7 +1162,6 @@ export class GDBDebugSession extends DebugSession {
                 }
                 const pc = parseAddr(regs[0]?.value ?? '');
                 if (pc !== undefined && isKernelAddr(pc, this.kernelMemoryRanges)) {
-                    this.showInfo('arrived at kernel. current addr: ' + pc.toString(16));
                     this.osStateTransition(new OSEvent(OSEvents.AT_KERNEL));
                 } else {
                     this.miDebugger!.stepInstruction();
@@ -1170,7 +1169,6 @@ export class GDBDebugSession extends DebugSession {
             });
         }
         else if (action.type === DebuggerActions.check_if_user_yet) {
-            this.showInfo('doing action: check_if_user_yet');
             this.miDebugger.getSomeRegisterValues([this.programCounterId]).then(regs => {
                 if (!regs || regs.length === 0 || !regs[0]) {
                     console.warn('[ardb] check_if_user_yet: no register data');
@@ -1178,7 +1176,6 @@ export class GDBDebugSession extends DebugSession {
                 }
                 const pc = parseAddr(regs[0]?.value ?? '');
                 if (pc !== undefined && isUserAddr(pc, this.userMemoryRanges)) {
-                    this.showInfo('arrived at user. current addr: ' + pc.toString(16));
                     this.osStateTransition(new OSEvent(OSEvents.AT_USER));
                 } else {
                     this.miDebugger!.stepInstruction();
