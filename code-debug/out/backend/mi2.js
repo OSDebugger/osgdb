@@ -802,6 +802,17 @@ class MI2 extends events_1.EventEmitter {
             }, reject);
         });
     }
+    captureConsoleOutput(command) {
+        const lines = [];
+        const msgHandler = (type, msg) => {
+            if (type === "console")
+                lines.push(msg);
+        };
+        this.on("msg", msgHandler);
+        return this.sendCommand(`interpreter-exec console "${command.replace(/[\\"']/g, "\\$&")}"`)
+            .then(() => { this.removeListener("msg", msgHandler); return lines.join(""); })
+            .catch((e) => { this.removeListener("msg", msgHandler); throw e; });
+    }
     sendCommand(command, suppressFailure = false) {
         const sel = this.currentToken++;
         return new Promise((resolve, reject) => {

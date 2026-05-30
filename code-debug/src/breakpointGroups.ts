@@ -192,6 +192,10 @@ export class BreakpointGroups {
 		this.currentBreakpointGroupName = this.groups[newIndex].name;
 		this.session.showInformationMessage("breakpoint group changed to " + updateTo);
 
+		const newBpCount = this.groups[newIndex].setBreakpointsArguments.reduce((s, a) => s + (a.breakpoints?.length ?? 0), 0);
+		const newFuncBorders = (this.groups[newIndex].borders ?? []).filter(b => b.func !== undefined).map(b => b.func);
+		this.session.showInformationMessage(`[DBG] switching to group "${updateTo}": ${newBpCount} user BPs, func borders=[${newFuncBorders.join(', ')}]`);
+
 		// 1. Clear old group's breakpoints from GDB (parallel, order doesn't matter)
 		const clearOldPromises = this.groups[oldIndex].setBreakpointsArguments.map(
 			(e) => this.session.miDebugger.clearBreakPoints(e.source.path)

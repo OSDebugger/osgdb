@@ -1114,25 +1114,20 @@ export class GDBDebugSession extends DebugSession {
     public async getStringVariable(name: string): Promise<string> {
         if (!this.miDebugger) return '';
         try {
-            const lenRes = await this.miDebugger.sendCommand(
-                `data-evaluate-expression ${name}.vec.len`
-            );
-            const len = parseInt((lenRes.result('value') || '').trim(), 10);
-            if (!Number.isFinite(len) || len <= 0 || len > 4096) {
-                this.showInfo(`getStringVariable('${name}'): bad len`);
-                return '';
-            }
+            const printed = await this.miDebugger.captureConsoleOutput(`p ${name}`);
 
-            const ptrRes = await this.miDebugger.sendCommand(
-                `data-evaluate-expression ${name}.vec.buf.ptr.pointer.pointer`
-            );
-            const ptrStr = ptrRes.result('value') || '';
-            const m = /0x[0-9a-fA-F]+/.exec(ptrStr);
-            if (!m) {
-                this.showInfo(`getStringVariable('${name}'): no addr`);
+            const ptrMatch = /pointer:\s*(0x[0-9a-fA-F]+)/.exec(printed);
+            const lenMatch = /len:\s*(\d+)/.exec(printed);
+            if (!ptrMatch || !lenMatch) {
+                this.showInfo(`getStringVariable('${name}'): could not parse pointer/len from: ${printed.slice(0, 200)}`);
                 return '';
             }
-            const addr = m[0];
+            const addr = ptrMatch[1];
+            const len = parseInt(lenMatch[1], 10);
+            if (!Number.isFinite(len) || len <= 0 || len > 4096) {
+                this.showInfo(`getStringVariable('${name}'): bad len ${len}`);
+                return '';
+            }
 
             const memRes = await this.miDebugger.sendCommand(
                 `data-read-memory-bytes ${addr} ${len}`
@@ -1213,7 +1208,9 @@ export class GDBDebugSession extends DebugSession {
         }
         else if (action.type === DebuggerActions.check_if_user_to_kernel_border_yet) {
             this.showInfo('doing action: check_if_user_to_kernel_border_yet');
-            const borders = this.breakpointGroups?.getCurrentBreakpointGroup()?.borders;
+            const currentGroup = this.breakpointGroups?.getCurrentBreakpointGroup();
+            const borders = currentGroup?.borders;
+            this.showInfo(`[DBG] user group="${currentGroup?.name}" borders=[${(borders ?? []).map(b => b.func ?? `${b.filepath}:${b.line}`).join(', ')}]`);
             this.miDebugger.getSomeRegisterValues([this.programCounterId]).then(regs => {
                 const reg = regs?.[0];
                 if (!reg) {
@@ -1231,14 +1228,12 @@ export class GDBDebugSession extends DebugSession {
                         const filepath = v[0].file ?? '';
                         const lineNumber = v[0].line ?? -1;
                         const funcName = v[0].function;
+                        this.showInfo(`[DBG] PC in kernel, frame: func="${funcName}" file="${filepath}" line=${lineNumber}`);
 
                         // Check if this is a user_to_kernel border
                         if (borders) {
                             for (const border of borders) {
                                 if (this.borderMatches(border, filepath, lineNumber, funcName, 'user_to_kernel')) {
-                                    // Hit user_to_kernel border, and PC is already in kernel
-                                    // This means the border is set at a kernel function (e.g., StarryOS handle_syscall)
-                                    // Switch directly to kernel state without single-stepping
                                     this.showInfo('[INFO] user_to_kernel border hit, PC already in kernel — switching to kernel state directly');
                                     this.pendingBreakpointNode = undefined;
                                     this.osStateTransition(new OSEvent(OSEvents.AT_KERNEL));
@@ -1263,12 +1258,11 @@ export class GDBDebugSession extends DebugSession {
                         const filepath = v[0].file ?? '';
                         const lineNumber = v[0].line ?? -1;
                         const funcName = v[0].function;
+                        this.showInfo(`[DBG] PC in user, frame: func="${funcName}" file="${filepath}" line=${lineNumber}`);
 
                         if (borders) {
                             for (const border of borders) {
                                 if (this.borderMatches(border, filepath, lineNumber, funcName, 'user_to_kernel')) {
-                                    // Hit user_to_kernel border in user space (rCore case)
-                                    // Enter single-step mode to cross the boundary
                                     this.showInfo('[INFO] user_to_kernel border hit in user space — entering single-step mode');
                                     this.pendingBreakpointNode = undefined;
                                     this.osStateTransition(new OSEvent(OSEvents.AT_USER_TO_KERNEL_BORDER));

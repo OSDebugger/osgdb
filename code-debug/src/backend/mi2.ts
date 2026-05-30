@@ -774,6 +774,17 @@ export class MI2 extends EventEmitter {
 		});
 	}
 
+	captureConsoleOutput(command: string): Promise<string> {
+		const lines: string[] = [];
+		const msgHandler = (type: string, msg: string) => {
+			if (type === "console") lines.push(msg);
+		};
+		this.on("msg", msgHandler);
+		return this.sendCommand(`interpreter-exec console "${command.replace(/[\\"']/g, "\\$&")}"`)
+			.then(() => { this.removeListener("msg", msgHandler); return lines.join(""); })
+			.catch((e) => { this.removeListener("msg", msgHandler); throw e; });
+	}
+
 	sendCommand(command: string, suppressFailure: boolean = false): Promise<MINode> {
 		const sel = this.currentToken++;
 		return new Promise((resolve, reject) => {
