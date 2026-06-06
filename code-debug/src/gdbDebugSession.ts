@@ -227,22 +227,25 @@ export class GDBDebugSession extends DebugSession {
                 self.sendEvent({ event: 'showInformationMessage', type: 'event', body: msg, seq: 0 } as any);
             },
             onBreakpointsRestored(results: Array<[boolean, import('./backend/backend').Breakpoint]>) {
-                // After a breakpoint group switch, GDB has re-inserted the new group's
-                // breakpoints under new GDB numbers.  We need to:
-                //   1. Register each new GDB number in gdbBkptToDap
-                //   2. Send BreakpointEvent('changed', verified=true) with the ORIGINAL DAP id
-                //      that VS Code assigned when the breakpoint was first set (stored in
-                //      pendingDapIds). Using the original id is what makes VS Code turn the
-                //      dot from grey/unverified to green.
+                console.log('[ardb-diag] onBreakpointsRestored: received', results.length, 'results');
+                console.log('[ardb-diag] pendingDapIds keys:', [...self.pendingDapIds.keys()]);
                 for (const [ok, brk] of results) {
-                    if (!ok || !brk) continue;
+                    if (!ok || !brk) {
+                        console.log('[ardb-diag] onBreakpointsRestored: skip [ok=', ok, '] brk=', brk);
+                        continue;
+                    }
                     const gdbNumber = brk.id ?? 0;
                     const line = brk.line ?? 0;
                     const file = brk.file ?? '';
+                    console.log(`[ardb-diag] onBreakpointsRestored: gdbNum=${gdbNumber} file="${file}" line=${line} raw="${brk.raw}"`);
 
-                    // Look up the original DAP id assigned when this breakpoint was pending.
                     const pendingKey = `${file}:${line}`;
                     const existingDapId = self.pendingDapIds.get(pendingKey);
+                    if (existingDapId !== undefined) {
+                        console.log(`[ardb-diag] onBreakpointsRestored: MATCH key="${pendingKey}" -> dapId=${existingDapId}`);
+                    } else {
+                        console.log(`[ardb-diag] onBreakpointsRestored: NO MATCH for key="${pendingKey}"`);
+                    }
                     const dapId = existingDapId ?? self.nextDapBreakpointId++;
                     if (existingDapId !== undefined) {
                         self.pendingDapIds.delete(pendingKey);
@@ -257,6 +260,7 @@ export class GDBDebugSession extends DebugSession {
                     }
                     self.sendEvent(new BreakpointEvent('changed', dbp));
                 }
+                console.log('[ardb-diag] onBreakpointsRestored: remaining pendingDapIds:', [...self.pendingDapIds.keys()]);
             },
         };
 
@@ -428,6 +432,7 @@ export class GDBDebugSession extends DebugSession {
                     return dbp;
                 });
                 response.body = { breakpoints: dapBreakpoints };
+                console.log(`[ardb-diag] setBreakPoints: file="${filePath}" NOT in current group "${currentGroup}", saved to group(s)=${JSON.stringify(groupNames)}, requestedLines=${JSON.stringify(requestedLines.map(b => b.line))}`);
                 this.sendResponse(response);
                 return;
             }
@@ -1403,11 +1408,16 @@ export class GDBDebugSession extends DebugSession {
 
         const gdbNumber = parseInt(MINode.valueOf(bkpt, "number") || '0');
         const entry = this.gdbBkptToDap.get(gdbNumber);
-        if (!entry) return;
+		if (!entry) {
+			console.log(`[ardb-diag] handleBreakpointModified: gdbNum=${gdbNumber} NOT in gdbBkptToDap`);
+			return;
+		}
 
         const nowVerified = MINode.valueOf(bkpt, "pending") === undefined;
         const actualLine = parseInt(MINode.valueOf(bkpt, "line") || `${entry.line}`);
+        const prevVerified = entry.verified;
         entry.verified = nowVerified;
+        console.log(`[ardb-diag] handleBreakpointModified: gdbNum=${gdbNumber} nowVerified=${nowVerified} line=${actualLine} prevVerified=${prevVerified}`);
         entry.line = actualLine;
 
         const dbp = new Breakpoint(nowVerified, actualLine);

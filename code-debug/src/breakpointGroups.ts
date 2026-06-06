@@ -255,11 +255,11 @@ export class BreakpointGroups {
 					);
 
 				return Promise.all([Promise.all(breakpointPromises), Promise.all(newFuncBorderPromises)])
-					.then(([bpResults]) => bpResults);
+					.then(([bpResults]) => { console.log('[ardb-diag] updateCurrentBreakpointGroup: bpResults =', JSON.stringify(bpResults)); return bpResults; });
 			})
 			.then((nestedResults) => {
 				// 4. Notify session to send BreakpointEvent('changed') for each restored BP
-				const flat = (nestedResults as Array<Array<[boolean, Breakpoint]>>).flat();
+				console.log('[ardb-diag] updateCurrentBreakpointGroup: nestedResults =', JSON.stringify(nestedResults)); const flat = (nestedResults as Array<Array<[boolean, Breakpoint]>>).flat(); console.log('[ardb-diag] updateCurrentBreakpointGroup: flat count =', flat.length);
 				this.session.onBreakpointsRestored(flat);
 				// 5. Now safe to continue execution
 				if (continueAfterUpdate) {
@@ -267,7 +267,7 @@ export class BreakpointGroups {
 				}
 			})
 			.catch(err => {
-				console.error('[ardb] updateCurrentBreakpointGroup failed:', err);
+				console.error('[ardb-diag] updateCurrentBreakpointGroup failed:', err);
 				if (continueAfterUpdate) {
 					this.session.miDebugger.continue();
 				}

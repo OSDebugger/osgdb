@@ -13,6 +13,7 @@
       ],
       "preLaunchTask": "npm: compile",
       "sourceMaps": true,
+      "smartStep": true,
       "internalConsoleOptions": "openOnSessionStart"
     }
   ]
