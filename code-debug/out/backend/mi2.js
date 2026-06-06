@@ -1,7 +1,7 @@
 "use strict";
 // Ported from code-debug (os-debug) src/backend/mi2/mi2.ts
 // Removed: SSH support, linux/console, prettyPrint utils, IBackend interface
-// Adapted for ardb: no SSH, focused on GDB process management + MI parsing + EventEmitter
+// Adapted for osdb: no SSH, focused on GDB process management + MI parsing + EventEmitter
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -312,7 +312,6 @@ class MI2 extends events_1.EventEmitter {
                     this.log("stdout", line);
             }
             else {
-                console.log(`[<- GDB] ${line}`);
                 const parsed = (0, mi_parse_1.parseMI)(line);
                 let handled = false;
                 if (parsed.token !== undefined) {
@@ -320,7 +319,7 @@ class MI2 extends events_1.EventEmitter {
                         if (parsed.resultRecords && parsed.resultRecords.resultClass == "error") {
                             const msg = parsed.result("msg");
                             if (msg && msg.toLowerCase().indexOf("thread is running") !== -1) {
-                                console.log("[ardb] intercepted 'thread is running' error: " + msg);
+                                console.log("[osdb] intercepted 'thread is running' error: " + msg);
                                 parsed.resultRecords.resultClass = 'done';
                             }
                         }
@@ -672,7 +671,7 @@ class MI2 extends events_1.EventEmitter {
         const result = await this.sendCommand(mi_string);
         const nodes = result.result('register-values');
         if (!Array.isArray(nodes)) {
-            console.warn("[ardb] getSomeRegisterValues: no register data returned, returning []");
+            console.warn("[osdb] getSomeRegisterValues: no register data returned, returning []");
             return [];
         }
         return nodes.map(node => ({
@@ -829,7 +828,6 @@ class MI2 extends events_1.EventEmitter {
                     resolve(node);
             };
             this.sendRaw(sel + "-" + command);
-            console.log(`[GDB ->] ${sel}-${command}`);
         });
     }
     isReady() {

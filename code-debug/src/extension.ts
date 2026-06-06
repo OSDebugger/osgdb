@@ -19,12 +19,12 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Create and register debug adapter factory
     const debugAdapterFactory = new ARDDebugAdapterFactory(context);
-    const disposable = vscode.debug.registerDebugAdapterDescriptorFactory('ardb', debugAdapterFactory);
+    const disposable = vscode.debug.registerDebugAdapterDescriptorFactory('osdb', debugAdapterFactory);
     context.subscriptions.push(disposable, debugAdapterFactory);
 
     // Register DebugAdapterTracker EARLY — before any session starts —
     // so that stopped events from the very first session are captured.
-    const trackerDisposable = vscode.debug.registerDebugAdapterTrackerFactory('ardb', {
+    const trackerDisposable = vscode.debug.registerDebugAdapterTrackerFactory('osdb', {
         createDebugAdapterTracker: (_session: vscode.DebugSession) => {
             return {
                 onDidSendMessage: (message: any) => {
@@ -46,7 +46,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Read border_breakpoints from launch.json and set them in the debug session
     const setBorderBreakpointsCmd = vscode.commands.registerCommand(
-        'ardb.setBorderBreakpointsFromLaunchJSON',
+        'osdb.setBorderBreakpointsFromLaunchJSON',
         () => {
             const config = vscode.workspace.getConfiguration('launch', vscode.workspace.workspaceFolders?.[0].uri);
             const configurations: any[] = config.get('configurations') ?? [];
@@ -67,7 +67,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Read hook_breakpoints from launch.json and set them in the debug session
     const setHookBreakpointsCmd = vscode.commands.registerCommand(
-        'ardb.setHookBreakpointsFromLaunchJSON',
+        'osdb.setHookBreakpointsFromLaunchJSON',
         () => {
             const config = vscode.workspace.getConfiguration('launch', vscode.workspace.workspaceFolders?.[0].uri);
             const configurations: any[] = config.get('configurations') ?? [];
@@ -97,7 +97,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Right-click a breakpoint in the editor gutter → set it as a border
     const setBreakpointAsBorderCmd = vscode.commands.registerCommand(
-        'ardb.setBreakpointAsBorder',
+        'osdb.setBreakpointAsBorder',
         (...args: any[]) => {
             const fullpath: string = args[0]?.uri?.fsPath;
             const lineNumber: number = args[0]?.lineNumber;
@@ -108,7 +108,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Disable a border (breakpoint stays, just no longer acts as a border)
     const disableBorderCmd = vscode.commands.registerCommand(
-        'ardb.disableBorderOfThisBreakpointGroup',
+        'osdb.disableBorderOfThisBreakpointGroup',
         (...args: any[]) => {
             const fullpath: string = args[0]?.uri?.fsPath;
             const lineNumber: number = args[0]?.lineNumber;
@@ -119,7 +119,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Remove all breakpoints from both VS Code UI and GDB
     const removeAllBreakpointsCmd = vscode.commands.registerCommand(
-        'ardb.removeAllCliBreakpoints',
+        'osdb.removeAllCliBreakpoints',
         () => {
             vscode.commands.executeCommand('workbench.debug.viewlet.action.removeAllBreakpoints');
             vscode.debug.activeDebugSession?.customRequest('removeAllCliBreakpoints');

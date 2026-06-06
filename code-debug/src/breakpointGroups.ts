@@ -159,7 +159,7 @@ export class BreakpointGroups {
 		}
 		this.groups[currentIndex].setBreakpointsArguments.forEach((e) => {
 			this.session.miDebugger.clearBreakPoints(e.source.path);
-			this.session.showInformationMessage("disableCurrentBreakpointGroupBreakpoints successed. index= " + currentIndex);
+			console.log('[osdb] ', "disableCurrentBreakpointGroupBreakpoints successed. index= " + currentIndex);
 		});
 	}
 
@@ -191,11 +191,11 @@ export class BreakpointGroups {
 
 		// Update name immediately so callers see the new group right away.
 		this.currentBreakpointGroupName = this.groups[newIndex].name;
-		this.session.showInformationMessage("breakpoint group changed to " + updateTo);
+		console.log('[osdb] ', "breakpoint group changed to " + updateTo);
 
 		const newBpCount = this.groups[newIndex].setBreakpointsArguments.reduce((s, a) => s + (a.breakpoints?.length ?? 0), 0);
 		const newFuncBorders = (this.groups[newIndex].borders ?? []).filter(b => b.func !== undefined).map(b => b.func);
-		this.session.showInformationMessage(`[DBG] switching to group "${updateTo}": ${newBpCount} user BPs, func borders=[${newFuncBorders.join(', ')}]`);
+		console.log('[osdb] ', `[DBG] switching to group "${updateTo}": ${newBpCount} user BPs, func borders=[${newFuncBorders.join(', ')}]`);
 
 		// 1. Clear old group's breakpoints from GDB (parallel, order doesn't matter)
 		const clearOldPromises = this.groups[oldIndex].setBreakpointsArguments.map(
@@ -223,8 +223,8 @@ export class BreakpointGroups {
 		const toTextAddr = (e: SymbolFileEntry) => typeof e === 'string' ? undefined : e.textAddr;
 
 		Promise.all([...clearOldPromises, ...clearOldFuncBorderPromises])
-			.then(() => Promise.all(oldSymbolFiles.map(f => this.session.miDebugger.removeSymbolFile(toPath(f)).catch(err => { console.error('[ardb] removeSymbolFile failed:', err); }))))
-			.then(() => Promise.all(newSymbolFiles.map(f => this.session.miDebugger.addSymbolFile(toPath(f), toTextAddr(f)).catch(err => { console.error('[ardb] addSymbolFile failed:', err); }))))
+			.then(() => Promise.all(oldSymbolFiles.map(f => this.session.miDebugger.removeSymbolFile(toPath(f)).catch(err => { console.error('[osdb] removeSymbolFile failed:', err); }))))
+			.then(() => Promise.all(newSymbolFiles.map(f => this.session.miDebugger.addSymbolFile(toPath(f), toTextAddr(f)).catch(err => { console.error('[osdb] addSymbolFile failed:', err); }))))
 			.then(() => {
 				// 3. Re-insert new group's breakpoints
 				const breakpointPromises = this.groups[newIndex].setBreakpointsArguments.map((args) => {
@@ -255,11 +255,11 @@ export class BreakpointGroups {
 					);
 
 				return Promise.all([Promise.all(breakpointPromises), Promise.all(newFuncBorderPromises)])
-					.then(([bpResults]) => { console.log('[ardb-diag] updateCurrentBreakpointGroup: bpResults =', JSON.stringify(bpResults)); return bpResults; });
+						.then(([bpResults]) => bpResults);
 			})
 			.then((nestedResults) => {
 				// 4. Notify session to send BreakpointEvent('changed') for each restored BP
-				console.log('[ardb-diag] updateCurrentBreakpointGroup: nestedResults =', JSON.stringify(nestedResults)); const flat = (nestedResults as Array<Array<[boolean, Breakpoint]>>).flat(); console.log('[ardb-diag] updateCurrentBreakpointGroup: flat count =', flat.length);
+					const flat = (nestedResults as Array<Array<[boolean, Breakpoint]>>).flat();
 				this.session.onBreakpointsRestored(flat);
 				// 5. Now safe to continue execution
 				if (continueAfterUpdate) {
@@ -267,7 +267,7 @@ export class BreakpointGroups {
 				}
 			})
 			.catch(err => {
-				console.error('[ardb-diag] updateCurrentBreakpointGroup failed:', err);
+				console.error('[osdb] updateCurrentBreakpointGroup failed:', err);
 				if (continueAfterUpdate) {
 					this.session.miDebugger.continue();
 				}

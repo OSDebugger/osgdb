@@ -227,24 +227,18 @@ export class GDBDebugSession extends DebugSession {
                 self.sendEvent({ event: 'showInformationMessage', type: 'event', body: msg, seq: 0 } as any);
             },
             onBreakpointsRestored(results: Array<[boolean, import('./backend/backend').Breakpoint]>) {
-                console.log('[ardb-diag] onBreakpointsRestored: received', results.length, 'results');
-                console.log('[ardb-diag] pendingDapIds keys:', [...self.pendingDapIds.keys()]);
                 for (const [ok, brk] of results) {
                     if (!ok || !brk) {
-                        console.log('[ardb-diag] onBreakpointsRestored: skip [ok=', ok, '] brk=', brk);
                         continue;
                     }
                     const gdbNumber = brk.id ?? 0;
                     const line = brk.line ?? 0;
                     const file = brk.file ?? '';
-                    console.log(`[ardb-diag] onBreakpointsRestored: gdbNum=${gdbNumber} file="${file}" line=${line} raw="${brk.raw}"`);
 
                     const pendingKey = `${file}:${line}`;
                     const existingDapId = self.pendingDapIds.get(pendingKey);
                     if (existingDapId !== undefined) {
-                        console.log(`[ardb-diag] onBreakpointsRestored: MATCH key="${pendingKey}" -> dapId=${existingDapId}`);
                     } else {
-                        console.log(`[ardb-diag] onBreakpointsRestored: NO MATCH for key="${pendingKey}"`);
                     }
                     const dapId = existingDapId ?? self.nextDapBreakpointId++;
                     if (existingDapId !== undefined) {
@@ -260,7 +254,6 @@ export class GDBDebugSession extends DebugSession {
                     }
                     self.sendEvent(new BreakpointEvent('changed', dbp));
                 }
-                console.log('[ardb-diag] onBreakpointsRestored: remaining pendingDapIds:', [...self.pendingDapIds.keys()]);
             },
         };
 
@@ -273,7 +266,7 @@ export class GDBDebugSession extends DebugSession {
                 if ('marker' in b) {
                     const found = scanMarker(this.cwd, b.marker);
                     if (found.length === 0) {
-                        this.sendEvent(new OutputEvent(`[ardb] Warning: marker "${b.marker}" not found in ${this.cwd}\n`, 'stderr'));
+                        this.sendEvent(new OutputEvent(`[osdb] Warning: marker "${b.marker}" not found in ${this.cwd}\n`, 'stderr'));
                     }
                     for (const loc of found) {
                         this.breakpointGroups.updateBorder(new Border(loc.filepath, loc.line, undefined, direction));
@@ -302,7 +295,7 @@ export class GDBDebugSession extends DebugSession {
                 if ('marker' in h) {
                     const found = scanMarker(this.cwd, h.marker);
                     if (found.length === 0) {
-                        this.sendEvent(new OutputEvent(`[ardb] Warning: marker "${h.marker}" not found in ${this.cwd}\n`, 'stderr'));
+                        this.sendEvent(new OutputEvent(`[osdb] Warning: marker "${h.marker}" not found in ${this.cwd}\n`, 'stderr'));
                     }
                     for (const loc of found) {
                         const normalized: HookBreakpointJSONFriendly = {
@@ -332,7 +325,7 @@ export class GDBDebugSession extends DebugSession {
                 15000,
                 (termResponse) => {
                     if (termResponse.success === false) {
-                        console.error('[ardb] Failed to launch QEMU in terminal');
+                        console.error('[osdb] Failed to launch QEMU in terminal');
                         this.sendEvent(new TerminatedEvent());
                         return;
                     }
@@ -432,7 +425,6 @@ export class GDBDebugSession extends DebugSession {
                     return dbp;
                 });
                 response.body = { breakpoints: dapBreakpoints };
-                console.log(`[ardb-diag] setBreakPoints: file="${filePath}" NOT in current group "${currentGroup}", saved to group(s)=${JSON.stringify(groupNames)}, requestedLines=${JSON.stringify(requestedLines.map(b => b.line))}`);
                 this.sendResponse(response);
                 return;
             }
@@ -847,7 +839,7 @@ export class GDBDebugSession extends DebugSession {
     }
 
     // -----------------------------------------------------------------------
-    // DAP: customRequest — dispatch ardb-* commands
+    // DAP: customRequest — dispatch osdb-* commands
     // -----------------------------------------------------------------------
 
     protected customRequest(
@@ -1159,10 +1151,10 @@ export class GDBDebugSession extends DebugSession {
         if (!this.miDebugger) return;
 
         if (action.type === DebuggerActions.check_if_kernel_yet) {
-            this.showInfo('doing action: check_if_kernel_yet');
+            console.log('[osdb] ', 'doing action: check_if_kernel_yet');
             this.miDebugger.getSomeRegisterValues([this.programCounterId]).then(regs => {
                 if (!regs || regs.length === 0 || !regs[0]) {
-                    console.warn('[ardb] check_if_kernel_yet: no register data');
+                    console.warn('[osdb] check_if_kernel_yet: no register data');
                     return;
                 }
                 const pc = parseAddr(regs[0]?.value ?? '');
@@ -1176,7 +1168,7 @@ export class GDBDebugSession extends DebugSession {
         else if (action.type === DebuggerActions.check_if_user_yet) {
             this.miDebugger.getSomeRegisterValues([this.programCounterId]).then(regs => {
                 if (!regs || regs.length === 0 || !regs[0]) {
-                    console.warn('[ardb] check_if_user_yet: no register data');
+                    console.warn('[osdb] check_if_user_yet: no register data');
                     return;
                 }
                 const pc = parseAddr(regs[0]?.value ?? '');
@@ -1188,11 +1180,11 @@ export class GDBDebugSession extends DebugSession {
             });
         }
         else if (action.type === DebuggerActions.check_if_kernel_to_user_border_yet) {
-            this.showInfo('doing action: check_if_kernel_to_user_border_yet');
+            console.log('[osdb] ', 'doing action: check_if_kernel_to_user_border_yet');
             const borders = this.breakpointGroups?.getCurrentBreakpointGroup()?.borders;
             this.miDebugger.getStack(0, 1, this.recentStopThreadId).then(v => {
                 if (!v || v.length === 0 || !v[0]) {
-                    console.warn('[ardb] check_if_kernel_to_user_border_yet: empty stack');
+                    console.warn('[osdb] check_if_kernel_to_user_border_yet: empty stack');
                     return;
                 }
                 const filepath = v[0].file ?? '';
@@ -1209,10 +1201,10 @@ export class GDBDebugSession extends DebugSession {
             });
         }
         else if (action.type === DebuggerActions.check_if_user_to_kernel_border_yet) {
-            this.showInfo('doing action: check_if_user_to_kernel_border_yet');
+            console.log('[osdb] ', 'doing action: check_if_user_to_kernel_border_yet');
             const currentGroup = this.breakpointGroups?.getCurrentBreakpointGroup();
             const borders = currentGroup?.borders;
-            this.showInfo(`[DBG] user group="${currentGroup?.name}" borders=[${(borders ?? []).map(b => b.func ?? `${b.filepath}:${b.line}`).join(', ')}]`);
+            console.log('[osdb] ', `[DBG] user group="${currentGroup?.name}" borders=[${(borders ?? []).map(b => b.func ?? `${b.filepath}:${b.line}`).join(', ')}]`);
             this.miDebugger.getSomeRegisterValues([this.programCounterId]).then(regs => {
                 const reg = regs?.[0];
                 if (!reg) {
@@ -1230,13 +1222,13 @@ export class GDBDebugSession extends DebugSession {
                         const filepath = v[0].file ?? '';
                         const lineNumber = v[0].line ?? -1;
                         const funcName = v[0].function;
-                        this.showInfo(`[DBG] PC in kernel, frame: func="${funcName}" file="${filepath}" line=${lineNumber}`);
+                        console.log('[osdb] ', `[DBG] PC in kernel, frame: func="${funcName}" file="${filepath}" line=${lineNumber}`);
 
                         // Check if this is a user_to_kernel border
                         if (borders) {
                             for (const border of borders) {
                                 if (this.borderMatches(border, filepath, lineNumber, funcName, 'user_to_kernel')) {
-                                    this.showInfo('[INFO] user_to_kernel border hit, PC already in kernel — switching to kernel state directly');
+                                    console.log('[osdb] ', '[INFO] user_to_kernel border hit, PC already in kernel — switching to kernel state directly');
                                     this.pendingBreakpointNode = undefined;
                                     this.osStateTransition(new OSEvent(OSEvents.AT_KERNEL));
                                     return;
@@ -1245,7 +1237,7 @@ export class GDBDebugSession extends DebugSession {
                         }
 
                         // Not a border — PC is already in kernel, switch group normally
-                        this.showInfo('[INFO] PC in kernel but state is user — switching to kernel state');
+                        console.log('[osdb] ', '[INFO] PC in kernel but state is user — switching to kernel state');
                         this.pendingBreakpointNode = undefined;
                         this.osStateTransition(new OSEvent(OSEvents.AT_KERNEL));
                     });
@@ -1260,12 +1252,12 @@ export class GDBDebugSession extends DebugSession {
                         const filepath = v[0].file ?? '';
                         const lineNumber = v[0].line ?? -1;
                         const funcName = v[0].function;
-                        this.showInfo(`[DBG] PC in user, frame: func="${funcName}" file="${filepath}" line=${lineNumber}`);
+                        console.log('[osdb] ', `[DBG] PC in user, frame: func="${funcName}" file="${filepath}" line=${lineNumber}`);
 
                         if (borders) {
                             for (const border of borders) {
                                 if (this.borderMatches(border, filepath, lineNumber, funcName, 'user_to_kernel')) {
-                                    this.showInfo('[INFO] user_to_kernel border hit in user space — entering single-step mode');
+                                    console.log('[osdb] ', '[INFO] user_to_kernel border hit in user space — entering single-step mode');
                                     this.pendingBreakpointNode = undefined;
                                     this.osStateTransition(new OSEvent(OSEvents.AT_USER_TO_KERNEL_BORDER));
                                     return;
@@ -1280,14 +1272,14 @@ export class GDBDebugSession extends DebugSession {
             });
         }
         else if (action.type === DebuggerActions.start_consecutive_single_steps) {
-            this.showInfo('doing action: start_consecutive_single_steps');
+            console.log('[osdb] ', 'doing action: start_consecutive_single_steps');
             this.miDebugger.stepInstruction();
         }
         else if (action.type === DebuggerActions.try_get_next_breakpoint_group_name) {
-            this.showInfo('doing action: try_get_next_breakpoint_group_name');
+            console.log('[osdb] ', 'doing action: try_get_next_breakpoint_group_name');
             this.miDebugger.getStack(0, 1, this.recentStopThreadId).then(v => {
                 if (!v || v.length === 0 || !v[0]) {
-                    console.warn('[ardb] try_get_next_breakpoint_group_name: empty stack');
+                    console.warn('[osdb] try_get_next_breakpoint_group_name: empty stack');
                     return;
                 }
                 const filepath = v[0].file;
@@ -1300,7 +1292,7 @@ export class GDBDebugSession extends DebugSession {
                         eval(hook.behavior)().then((hookResult: string) => {
                             this.breakpointGroups!.setNextBreakpointGroup(hookResult);
                             this.currentHook = undefined;
-                            this.showInfo('finished action: try_get_next_breakpoint_group_name. Next breakpoint group is ' + hookResult);
+                            console.log('[osdb] ', 'finished action: try_get_next_breakpoint_group_name. Next breakpoint group is ' + hookResult);
                         });
                     }
                 }
@@ -1335,10 +1327,10 @@ export class GDBDebugSession extends DebugSession {
                         try {
                             const hookResult = await eval(hook.behavior)();
                             this.breakpointGroups!.setNextBreakpointGroup(hookResult);
-                            this.showInfo('hook matched, next group: ' + hookResult);
+                            console.log('[osdb] ', 'hook matched, next group: ' + hookResult);
                         } catch (e: any) {
-                            this.showInfo('hook eval failed: ' + (e?.message ?? e));
-                            console.error('[ardb] hook eval failed:', e);
+                            console.log('[osdb] ', 'hook eval failed: ' + (e?.message ?? e));
+                            console.error('[osdb] hook eval failed:', e);
                         }
                         this.pendingBreakpointNode = undefined;
                         this.miDebugger!.continue();
@@ -1409,7 +1401,6 @@ export class GDBDebugSession extends DebugSession {
         const gdbNumber = parseInt(MINode.valueOf(bkpt, "number") || '0');
         const entry = this.gdbBkptToDap.get(gdbNumber);
 		if (!entry) {
-			console.log(`[ardb-diag] handleBreakpointModified: gdbNum=${gdbNumber} NOT in gdbBkptToDap`);
 			return;
 		}
 
@@ -1417,7 +1408,6 @@ export class GDBDebugSession extends DebugSession {
         const actualLine = parseInt(MINode.valueOf(bkpt, "line") || `${entry.line}`);
         const prevVerified = entry.verified;
         entry.verified = nowVerified;
-        console.log(`[ardb-diag] handleBreakpointModified: gdbNum=${gdbNumber} nowVerified=${nowVerified} line=${actualLine} prevVerified=${prevVerified}`);
         entry.line = actualLine;
 
         const dbp = new Breakpoint(nowVerified, actualLine);
@@ -1465,9 +1455,20 @@ export class GDBDebugSession extends DebugSession {
         const stack = await this.miDebugger!.getStack(0, 200, threadId);
         const stackFrames: DebugProtocol.StackFrame[] = stack.map((f, i) => {
             const frameId = threadId * 10000 + parseInt(f.level as any || i);
+            let privilegeTag = '';
+            if (f.address) {
+                const addr = parseAddr(f.address);
+                if (addr !== undefined) {
+                    if (isKernelAddr(addr, this.kernelMemoryRanges)) {
+                        privilegeTag = ' [kernel]';
+                    } else if (isUserAddr(addr, this.userMemoryRanges)) {
+                        privilegeTag = ' [user]';
+                    }
+                }
+            }
             const sf = new StackFrame(
                 frameId,
-                f.function || '<unknown>',
+                (f.function || '<unknown>') + privilegeTag,
                 (f.file) ? new Source(f.fileName || '', f.file) : undefined,
                 f.line || 0,
                 0,
